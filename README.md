@@ -2,7 +2,7 @@
 
 用于查看 Go module 内接口与结构体实现关系的 VS Code 插件，视觉呈现与交互计划参考 GoLand。
 
-当前版本完成了扩展基础框架：按需激活、命令注册、日志、开发调试、静态检查和 VSIX 打包。接口分析与导航尚未实现。
+当前版本完成了扩展基础框架，以及 module 上下文和文档快照模块。接口分析与导航尚未实现。
 
 业务与代码方案保存在本地 `docs/` 目录，不纳入版本控制。接口分析、导航和过滤功能将按模块逐步实现。
 
@@ -11,6 +11,18 @@
 - 从 struct 查看当前 Go module 内它实现的所有接口
 - 从接口查看当前 Go module 内实现它的所有 struct
 - 支持过滤位于引入 `testing` 包的单元测试代码中的接口实现
+
+## 已实现的工作区基础模块
+
+- 通过 `go env -json`、`go mod edit -json` 和 `go work edit -json` 读取 module、工作区及本地替换配置，不自行解析 Go 模块文件
+- 优先使用官方 Go 扩展公开的工具路径 API，也可指定 `goInterfaces.goExecutable`
+- 记录目标平台、CGO、构建 flags、Go 环境与配置文件摘要，形成编译上下文
+- 捕获打开的 Go 文档内容与版本，构建未保存内容的 overlay；输入变化后旧快照失效
+- 监听工作区、已发现模块及配置文件的变化，并在插件关闭时释放监听和取消模块发现
+
+该模块供后续查询服务调用，激活插件时不会执行 Go 包加载。目前采用保守的全局快照失效策略；精确的传递依赖跟踪随分析器实现。引入 `go.mod`、`go.work` 等配置的未保存改动，以及替换输入的 `-modfile`、`-overlay`、`-C` 参数，均返回明确的不支持状态。
+
+2026-11-04 已通过静态检查、打包和基于本机 Go SDK `std` module 的只读本地运行；该运行核对了模块元数据与文档快照捕获。VS Code 宿主中的监听事件、多 module/嵌套 module、`go.work`、未保存改动和远程环境尚未完成交互验收。
 
 ## 本地开发
 
@@ -52,6 +64,9 @@ npm run watch
 
 ```text
 src/extension.ts       扩展入口、命令和资源生命周期
+src/domain/            实现关系、类型和快照的领域契约
+src/application/       查询请求、状态和服务契约
+src/workspace/         module 解析、文档快照与宿主事件适配
 .vscode/              F5 调试、构建任务和开发配置
 .github/workflows/     Windows / Linux 静态检查与打包流程
 package.json          扩展清单、命令声明和开发脚本
@@ -66,11 +81,11 @@ dist/                 构建产物，不纳入版本控制
 - 入口使用普通函数，命令与日志通过 `context.subscriptions` 释放
 - 日志使用 VS Code 自带的 `LogOutputChannel`；通过 VS Code 的日志级别操作调整详细程度
 - 使用 `extensionKind: workspace`，为后续在工作区所在的扩展宿主中分析 Go 代码保留位置；远程环境仍需后续验证
-- 运行时代码目前只依赖 VS Code API；构建、格式化、静态检查和打包使用成熟工具
+- 运行时代码使用 VS Code、Node.js 标准能力与 Zod Mini；Zod 校验 Go 工具返回的元数据
 - `@types/vscode` 固定为最低支持的 API 版本，避免开发时误用较新 API
 - 重要逻辑使用英文、中文各一行的注释，中文注释不使用中文句号
 
-接口分析、配置项和结果展示会随对应功能逐步添加。
+接口分析、过滤和结果展示会随对应功能逐步添加。
 
 ## 本地打包
 

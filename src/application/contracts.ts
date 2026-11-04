@@ -44,6 +44,7 @@ export type UnsupportedReason =
 	| 'uninstantiated-generic'
 	| 'excluded-by-build'
 	| 'unsaved-module-config'
+	| 'unsupported-build-config'
 	| 'virtual-workspace';
 
 export interface QueryFailure {

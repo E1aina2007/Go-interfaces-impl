@@ -1,4 +1,6 @@
 {
   "extension.description": "在 Go module 内查看接口与结构体的实现关系（开发中）",
-  "command.showOutput": "查看输出"
+  "command.showOutput": "查看输出",
+  "configuration.goExecutable": "工作区宿主使用的 Go 可执行文件，留空时使用 Go 扩展提供的路径或 PATH",
+  "configuration.buildFlags": "分析上下文的附加 Go 构建参数，例如 -tags=integration，暂不支持替换输入的 -modfile、-overlay 和 -C 参数"
 }
