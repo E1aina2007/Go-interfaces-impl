@@ -14,7 +14,13 @@ import {
 import type { GoSyntax } from '../core/syntax';
 import type { GoDeclaration, GoFile, TypeKind } from '../core/types';
 import { GoProvider } from '../language/provider';
-import { belongsToModule, findModule, type GoModule } from '../workspace/module';
+import {
+	belongsToModule,
+	canonicalUri,
+	fileKey,
+	findModule,
+	type GoModule,
+} from '../workspace/module';
 
 export interface LocatedType {
 	readonly declaration: GoDeclaration;
@@ -53,6 +59,18 @@ export class ImplementationQueries implements Disposable {
 	private disposed = false;
 
 	constructor(private readonly syntax: GoSyntax) {
+		const dirty = new Set(
+			workspace.textDocuments
+				.filter((document) => document.isDirty)
+				.map((document) => document.uri.toString()),
+		);
+		const track = (document: TextDocument): void => {
+			if (document.isDirty) {
+				dirty.add(document.uri.toString());
+			} else {
+				dirty.delete(document.uri.toString());
+			}
+		};
 		const invalidate = (): void => {
 			this.generation++;
 		};
@@ -62,7 +80,14 @@ export class ImplementationQueries implements Disposable {
 			watcher.onDidCreate(invalidate),
 			watcher.onDidChange(invalidate),
 			watcher.onDidDelete(invalidate),
+			workspace.onDidOpenTextDocument((document) => {
+				track(document);
+				if (document.isDirty) {
+					invalidate();
+				}
+			}),
 			workspace.onDidChangeTextDocument((event) => {
+				track(event.document);
 				if (
 					event.document.languageId === 'go' ||
 					/(?:^|\/)(?:go\.(?:mod|sum|work)|go\.work\.sum)$/.test(event.document.uri.path)
@@ -71,10 +96,11 @@ export class ImplementationQueries implements Disposable {
 				}
 			}),
 			workspace.onDidCloseTextDocument((document) => {
-				if (document.isDirty) {
+				if (dirty.delete(document.uri.toString())) {
 					invalidate();
 				}
 			}),
+			workspace.onDidSaveTextDocument((document) => track(document)),
 			workspace.onDidChangeWorkspaceFolders(invalidate),
 			workspace.onDidChangeConfiguration((event) => {
 				if (
@@ -96,6 +122,7 @@ export class ImplementationQueries implements Disposable {
 		position: Position,
 		expected: TypeKind,
 		caller: CancellationToken,
+		sourceVersion?: number,
 	): Promise<QueryResult> {
 		const request = new CancellationTokenSource();
 		this.pending.add(request);
@@ -178,6 +205,9 @@ export class ImplementationQueries implements Disposable {
 				);
 			}
 			const source = await read(uri);
+			if (sourceVersion !== undefined && source.document.version !== sourceVersion) {
+				throw new StaleQueryError();
+			}
 			if (source.document.languageId !== 'go') {
 				throw new Error('Select a Go source document.');
 			}
@@ -221,6 +251,7 @@ export class ImplementationQueries implements Disposable {
 				.getConfiguration('goInterfaces', uri)
 				.get<boolean>('hideTestingImplementations', true);
 			const matches = new Map<string, LocatedType>();
+			const seen = new Set<string>();
 			let hidden = 0;
 			let skipped = 0;
 			const moduleResults = new Map<string, Promise<boolean>>();
@@ -250,11 +281,18 @@ export class ImplementationQueries implements Disposable {
 					skipped++;
 					continue;
 				}
+				const identity = `${fileKey(await canonicalUri(key))}:${match.declaration.start}`;
+				if (seen.has(identity)) {
+					continue;
+				}
+				seen.add(identity);
+				// Public language APIs expose declaration locations without method provenance.
+				// 公开语言接口仅提供声明位置，不包含方法来源依据
 				if (hideTesting && (subject.testing || match.testing)) {
 					hidden++;
 					continue;
 				}
-				matches.set(`${key}:${match.declaration.start}`, match);
+				matches.set(identity, match);
 			}
 			check();
 			return {
@@ -271,6 +309,9 @@ export class ImplementationQueries implements Disposable {
 				hideTesting,
 				generation,
 			};
+		} catch (error) {
+			check();
+			throw error;
 		} finally {
 			cancel.dispose();
 			request.dispose();

@@ -22,6 +22,35 @@ function importsTesting(literal: Node): boolean {
 	return decoded === 'testing';
 }
 
+// Named embedded types need semantic resolution; reject only constraints visible in the syntax.
+// 命名嵌入类型需要语义解析，因此这里只拒绝语法可直接识别的约束
+function isConstraint(type: Node): boolean {
+	for (const element of type.namedChildren) {
+		if (element?.type !== 'type_elem') {
+			continue;
+		}
+		const members = element.namedChildren.filter(
+			(child): child is Node => child !== null && child.type !== 'comment',
+		);
+		if (members.length > 1) {
+			return true;
+		}
+		for (const member of members) {
+			if (!['type_identifier', 'qualified_type', 'generic_type'].includes(member.type)) {
+				return true;
+			}
+			if (
+				/^(bool|byte|comparable|complex64|complex128|float32|float64|int|int8|int16|int32|int64|rune|string|uint|uint8|uint16|uint32|uint64|uintptr)$/.test(
+					member.text,
+				)
+			) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 function declaration(node: Node): GoDeclaration | undefined {
 	const name = node.childForFieldName('name');
 	const type = node.childForFieldName('type');
@@ -39,25 +68,7 @@ function declaration(node: Node): GoDeclaration | undefined {
 		end: name.endIndex,
 		generic: node.childForFieldName('type_parameters') !== null,
 		empty: kind === 'interface' && elements.length === 0,
-		constraint:
-			kind === 'interface' &&
-			type.namedChildren.some((element) => {
-				if (element?.type !== 'type_elem') {
-					return false;
-				}
-				const members = element.namedChildren.filter((child) => child?.type !== 'comment');
-				return (
-					members.length > 1 ||
-					members.some(
-						(member) =>
-							member !== null &&
-							(member.type === 'negated_type' ||
-								/^(bool|byte|complex64|complex128|float32|float64|int|int8|int16|int32|int64|rune|string|uint|uint8|uint16|uint32|uint64|uintptr)$/.test(
-									member.text,
-								)),
-					)
-				);
-			}),
+		constraint: kind === 'interface' && isConstraint(type),
 	};
 }
 
