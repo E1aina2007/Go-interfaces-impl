@@ -4,7 +4,7 @@
   "command.findImplementations": "查看类型实现关系",
   "command.findInterfaces": "查看实现的接口",
   "command.findStructs": "查看实现接口的结构体",
-  "command.toggleTestingFilter": "切换按声明文件过滤测试实现",
-  "configuration.hideTestingImplementations": "任一类型声明位于直接导入 testing 的 _test.go 文件时隐藏该结果。语言服务不提供方法来源，因此不会过滤测试方法产生的实现关系。",
+  "command.toggleTestingFilter": "切换测试来源过滤",
+  "configuration.hideTestingImplementations": "类型声明位于直接导入 testing 的 _test.go 文件，或必要的直接方法仅报告这种来源时隐藏关系。同一方法同时报告可保留来源时，不因该方法删除关系；无法确认或涉及方法提升的来源保留并标记，结果仍受语言服务覆盖范围限制。",
   "configuration.codeLens": "在 struct 和 interface 声明上方显示实现关系查询入口。"
 }

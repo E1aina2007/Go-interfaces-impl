@@ -21,6 +21,12 @@ export interface LocatedType {
 	readonly declaration: GoType;
 	readonly location: Location;
 	readonly testing: boolean;
+	readonly methods: readonly LocatedMethod[];
+}
+
+export interface LocatedMethod {
+	readonly name: string;
+	readonly location: Location;
 }
 
 export class TypeResolver {
@@ -34,6 +40,27 @@ export class TypeResolver {
 
 	resolve(location: Location): Promise<LocatedType | undefined> {
 		return this.follow(location, new Set());
+	}
+
+	async resolveReference(location: Location): Promise<LocatedType | undefined> {
+		const file = await this.read(location.uri);
+		const offset = file.document.offsetAt(location.range.start);
+		if (file.syntax.declarations.some((item) => item.start <= offset && offset < item.end)) {
+			return this.resolve(location);
+		}
+		let result: LocatedType | undefined;
+		for (const definition of await this.provider.definitions(
+			location.uri,
+			location.range.start,
+			this.token,
+		)) {
+			const candidate = await this.resolve(definition);
+			if (!candidate || (result && result.id !== candidate.id)) {
+				return undefined;
+			}
+			result = candidate;
+		}
+		return result;
 	}
 
 	private async follow(
@@ -66,6 +93,7 @@ export class TypeResolver {
 			return cached;
 		}
 		let type: GoType;
+		let methods: readonly LocatedMethod[];
 		if (declaration.kind === 'reference') {
 			if (declaration.generic) {
 				return undefined;
@@ -103,9 +131,23 @@ export class TypeResolver {
 				kind: target.declaration.kind,
 				empty: target.declaration.empty,
 				constraint: target.declaration.constraint,
+				embedded: target.declaration.embedded,
 			};
+			methods = target.methods;
 		} else {
 			type = declaration;
+			methods = file.syntax.interfaceMethods
+				.filter((item) => item.owner === declaration.start)
+				.map((item) => ({
+					name: item.name,
+					location: new Location(
+						location.uri,
+						new Range(
+							file.document.positionAt(item.start),
+							file.document.positionAt(item.end),
+						),
+					),
+				}));
 		}
 		const result = {
 			id,
@@ -118,6 +160,7 @@ export class TypeResolver {
 				),
 			),
 			testing: location.uri.path.endsWith('_test.go') && file.syntax.importsTesting,
+			methods,
 		};
 		this.resolved.set(id, result);
 		return result;

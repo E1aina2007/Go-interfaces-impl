@@ -127,14 +127,14 @@ export class ImplementationCommands implements Disposable {
 					match.declaration.kind === 'struct' ? 'symbol-struct' : 'symbol-interface',
 				),
 				description: workspace.asRelativePath(match.location.uri),
-				detail: `${match.location.uri.fsPath}:${match.location.range.start.line + 1}`,
+				detail: `${match.location.uri.fsPath}:${match.location.range.start.line + 1}${result.unverifiedTesting.has(match.id) ? ' · Test method sources not fully verified' : ''}`,
 				match,
 			}));
 			const selected = await window.showQuickPick(
 				items,
 				{
 					title: `${result.subject.declaration.name} → ${result.subject.declaration.kind === 'struct' ? 'interfaces' : 'structs'}`,
-					placeHolder: `Language-service results may be incomplete · ${result.hidden} filtered · ${result.skipped} unsupported · test filter checks declaration files`,
+					placeHolder: `Language-service results may be incomplete · ${result.hidden} filtered · ${result.skipped} unsupported · ${result.unverifiedTesting.size} test sources unverified`,
 					matchOnDescription: true,
 					matchOnDetail: true,
 				},
@@ -192,7 +192,7 @@ export class ImplementationCommands implements Disposable {
 			);
 			this.active?.cancel();
 			void window.showInformationMessage(
-				`Go Interfaces: Declaration-file test filter ${enabled ? 'disabled' : 'enabled'}.`,
+				`Go Interfaces: Test source filter ${enabled ? 'disabled' : 'enabled'}.`,
 			);
 		} catch (error) {
 			this.output.error('Unable to update the test filter', error);

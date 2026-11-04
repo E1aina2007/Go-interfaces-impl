@@ -15,6 +15,7 @@ import type { TypeKind } from '../core/types';
 import { GoProvider } from '../language/provider';
 import { belongsToModule, findModule, type GoModule } from '../workspace/module';
 import { TypeResolver, type CapturedFile, type LocatedType } from './resolve';
+import { TestingFilter } from './filter';
 
 export interface QueryResult {
 	readonly coverage: 'provider-limited';
@@ -22,6 +23,7 @@ export interface QueryResult {
 	readonly subject: LocatedType;
 	readonly matches: readonly LocatedType[];
 	readonly hidden: number;
+	readonly unverifiedTesting: ReadonlySet<string>;
 	readonly skipped: number;
 	readonly hideTesting: boolean;
 	readonly generation: number;
@@ -174,21 +176,7 @@ export class ImplementationQueries implements Disposable {
 			}
 			await this.provider.prepare(uri, token);
 			check();
-			let subject = await resolver.resolve(new Location(uri, position));
-			const offset = source.document.offsetAt(position);
-			const selectedDeclaration = source.syntax.declarations.some(
-				(item) => item.start <= offset && offset < item.end,
-			);
-			if (!subject && !selectedDeclaration) {
-				for (const location of await this.provider.definitions(uri, position, token)) {
-					const candidate = await resolver.resolve(location);
-					if (!candidate || (subject && subject.id !== candidate.id)) {
-						subject = undefined;
-						break;
-					}
-					subject = candidate;
-				}
-			}
+			const subject = await resolver.resolveReference(new Location(uri, position));
 			if (!subject) {
 				throw new Error(
 					'Select a named struct or interface. Its type reference must resolve unambiguously within 32 declarations; pointers and generic instances are not supported.',
@@ -214,9 +202,16 @@ export class ImplementationQueries implements Disposable {
 				.get<boolean>('hideTestingImplementations', true);
 			const matches = new Map<string, LocatedType>();
 			const seen = new Set<string>();
-			let hidden = 0;
 			let skipped = 0;
 			const moduleResults = new Map<string, Promise<boolean>>();
+			const belongs = (uri: string): Promise<boolean> => {
+				let result = moduleResults.get(uri);
+				if (!result) {
+					result = belongsToModule(uri, module);
+					moduleResults.set(uri, result);
+				}
+				return result;
+			};
 			for (const location of locations) {
 				check();
 				if (location.uri.scheme !== 'file') {
@@ -224,12 +219,7 @@ export class ImplementationQueries implements Disposable {
 					continue;
 				}
 				const key = location.uri.toString();
-				let belongs = moduleResults.get(key);
-				if (!belongs) {
-					belongs = belongsToModule(key, module);
-					moduleResults.set(key, belongs);
-				}
-				if (!(await belongs)) {
+				if (!(await belongs(key))) {
 					continue;
 				}
 				const match = await resolver.resolve(location);
@@ -245,7 +235,7 @@ export class ImplementationQueries implements Disposable {
 				}
 				// Recheck the canonical type so a local alias cannot import a dependency into module results.
 				// 再次核对规范类型，避免通过本地别名把依赖类型加入当前模块结果
-				if (!(await belongsToModule(match.location.uri.toString(), module))) {
+				if (!(await belongs(match.location.uri.toString()))) {
 					continue;
 				}
 				const identity = match.id;
@@ -253,25 +243,27 @@ export class ImplementationQueries implements Disposable {
 					continue;
 				}
 				seen.add(identity);
-				// Public language APIs expose declaration locations without method provenance.
-				// 公开语言接口仅提供声明位置，不包含方法来源依据
-				if (hideTesting && (subject.testing || match.testing)) {
-					hidden++;
-					continue;
-				}
 				matches.set(identity, match);
 			}
+			const candidates = [...matches.values()];
+			const filtered = hideTesting
+				? await new TestingFilter(this.provider, resolver, read, belongs, token).apply(
+						subject,
+						candidates,
+					)
+				: { matches: candidates, hidden: 0, unverified: new Set<string>() };
 			check();
 			return {
 				coverage: 'provider-limited',
 				module,
 				subject,
-				matches: [...matches.values()].sort(
+				matches: [...filtered.matches].sort(
 					(a, b) =>
 						a.declaration.name.localeCompare(b.declaration.name) ||
 						a.location.uri.toString().localeCompare(b.location.uri.toString()),
 				),
-				hidden,
+				hidden: filtered.hidden,
+				unverifiedTesting: filtered.unverified,
 				skipped,
 				hideTesting,
 				generation,
