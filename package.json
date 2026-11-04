@@ -67,10 +67,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "npm run format:check && npm run lint && npm run check-types",
-    "compile": "npm run check-types && npm run build:analyzer && node esbuild.mjs",
-    "build:analyzer": "node scripts/build-analyzer.mjs",
-    "check:analyzer": "go -C analyzer vet ./...",
-    "build": "npm run check && npm run build:analyzer && node esbuild.mjs --production",
+    "compile": "npm run check-types && node esbuild.mjs",
+    "build": "npm run check && node esbuild.mjs --production",
     "watch": "run-p watch:*",
     "watch:esbuild": "node esbuild.mjs --watch",
     "watch:types": "tsc --noEmit --watch --preserveWatchOutput",
@@ -93,7 +91,6 @@
     "typescript-eslint": "^8.72.1"
   },
   "dependencies": {
-    "vscode-jsonrpc": "^10.0.0",
     "zod": "^4.6.7"
   }
 }

@@ -20,10 +20,5 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - uses: actions/setup-go@v7
-        with:
-          go-version-file: analyzer/go.mod
-          cache-dependency-path: analyzer/go.sum
       - run: npm ci
-      - run: npm run check:analyzer
       - run: npm run package
