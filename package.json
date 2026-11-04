@@ -33,26 +33,6 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
-    "configuration": {
-      "title": "Go Interfaces",
-      "properties": {
-        "goInterfaces.goExecutable": {
-          "type": "string",
-          "default": "",
-          "scope": "machine-overridable",
-          "description": "%configuration.goExecutable%"
-        },
-        "goInterfaces.buildFlags": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": [],
-          "scope": "resource",
-          "description": "%configuration.buildFlags%"
-        }
-      }
-    },
     "commands": [
       {
         "command": "goInterfaces.showOutput",
@@ -89,8 +69,5 @@
     "prettier": "^3.9.10",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.72.1"
-  },
-  "dependencies": {
-    "zod": "^4.6.7"
   }
 }

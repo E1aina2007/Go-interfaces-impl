@@ -1,6 +1,4 @@
 {
   "extension.description": "Go interface implementation navigation within a module (in development).",
-  "command.showOutput": "Show Output",
-  "configuration.goExecutable": "Go executable used in the workspace host. Leave empty to use the Go extension tool path or PATH.",
-  "configuration.buildFlags": "Additional Go build flags for the analysis context, such as -tags=integration. Input-replacing flags -modfile, -overlay and -C are not supported yet."
+  "command.showOutput": "Show Output"
 }
