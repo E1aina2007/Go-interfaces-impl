@@ -10,7 +10,7 @@ import {
 	type TextDocument,
 } from 'vscode';
 import type { GoSyntax } from '../core/syntax';
-import { findInterfaces, findStructs } from './commands';
+import { findImplementations, findInterfaces, findStructs } from './commands';
 
 export class ImplementationLenses implements CodeLensProvider, Disposable {
 	private readonly changed = new EventEmitter<void>();
@@ -52,19 +52,31 @@ export class ImplementationLenses implements CodeLensProvider, Disposable {
 			}
 			const lenses: CodeLens[] = [];
 			for (const declaration of file.declarations) {
-				if (declaration.generic || declaration.constraint || declaration.empty) {
+				if (declaration.generic || declaration.kind === 'unsupported') {
 					continue;
+				}
+				if (
+					declaration.kind !== 'reference' &&
+					(declaration.constraint || declaration.empty)
+				) {
+					continue;
+				}
+				let title = 'Show implementation relations';
+				let command = findImplementations;
+				if (declaration.kind === 'struct') {
+					title = 'Show implemented interfaces';
+					command = findInterfaces;
+				} else if (declaration.kind === 'interface') {
+					title = 'Show implementing structs';
+					command = findStructs;
 				}
 				const position = document.positionAt(declaration.start);
 				// Lenses offer actions without launching a module query for every visible declaration.
 				// CodeLens 仅提供操作入口，不为每个可见声明自动发起模块查询
 				lenses.push(
 					new CodeLens(new Range(position, document.positionAt(declaration.end)), {
-						title:
-							declaration.kind === 'struct'
-								? 'Show implemented interfaces'
-								: 'Show implementing structs',
-						command: declaration.kind === 'struct' ? findInterfaces : findStructs,
+						title,
+						command,
 						arguments: [document.uri, position, version],
 					}),
 				);

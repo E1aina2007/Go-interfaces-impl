@@ -8,6 +8,7 @@
 
 - 在 struct 名称处执行 **Go Interfaces: 查看实现的接口** / **Show Implemented Interfaces**
 - 在 interface 名称处执行 **Go Interfaces: 查看实现接口的结构体** / **Show Implementing Structs**
+- 使用 **Go Interfaces: 查看类型实现关系** / **Show Type Implementation Relations** 自动选择方向，适用于类型别名与基于具名类型的新定义
 - 从类型引用处发起查询，或点击声明上方的 CodeLens；编辑器右键菜单也提供两个方向的操作
 - 将语言服务返回的位置限定到当前文件所属的 module，排除嵌套 module、vendor 和依赖目录；使用原生列表选择并跳转
 - 支持按声明文件过滤测试来源，显示隐藏数量与无法分类的结果数量
@@ -21,9 +22,15 @@
 
 公开接口仅返回位置，无法提供完整的方法集、包变体或关系来源。因此结果统一标记为语言服务提供的有限结果，不承诺 module 内实现关系的完整枚举；零项结果也只表示当前没有可展示的位置。gopls 对空方法集和部分泛型、约束类型有能力限制，值与指针形式也不会在本插件中分别显示。[公开命令契约](https://code.visualstudio.com/api/references/commands) · [gopls 实现](https://github.com/golang/tools/blob/master/gopls/internal/golang/implementation.go)
 
-当前仅分类源码中直接声明为 struct / interface 的类型，包括直接使用字面类型的别名。引用其他具名类型的别名与新定义类型尚未解析；泛型声明、空接口及可识别的类型集合约束会被拒绝或跳过。命名类型构成的复杂约束仍依赖语言服务，无法保证精确识别。
+支持直接声明的 struct / interface，以及最终解析到这些类型的非泛型引用链。类型别名 `type Alias = Original` 按目标类型去重、显示与跳转；新定义 `type New Original` 保留 `New` 的身份、位置和 module 归属，只沿引用确定底层种类，其实现关系始终从原查询位置交给语言服务判断，不复用 `Original` 的实现列表。[Go 类型声明规范](https://go.dev/ref/spec#Type_declarations)
+
+引用链通过公开 definition provider 解析，单次最多跟进 32 个声明，防止循环；有歧义或无法解析的主体明确报错，结果候选计入不支持数量。显式指针、其他复合类型、泛型声明与实例、空接口及可识别的类型集合约束仍不支持。命名类型构成的复杂约束仍依赖语言服务，无法保证精确识别。
+
+引用其他具名类型的声明显示通用 CodeLens，点击后才解析方向；普通 struct / interface 仍显示对应方向的操作入口，不为可见文档预先执行语言查询。
 
 module 边界通过当前文件最近的 `go.mod` 和规范化后的物理路径确定，不执行 Go 命令读取环境。`go.work` 的其他 module 不进入结果；当前文件必须位于打开的文件系统工作区中。虚拟工作区与未信任工作区不启用本扩展。
+
+本地别名指向依赖类型时，不会将该依赖类型作为本 module 的新类型计入结果；本地新定义则保留自己的归属。结果仍受语言服务返回的位置范围限制。
 
 ### 测试过滤
 
@@ -36,6 +43,8 @@ filename ends with _test.go && directly imports testing
 导入来自 Tree-sitter 语法树，支持别名、点导入、空白导入、原始字符串及数字转义。注释、普通字符串中的 testing、testing/quick，以及同包其他文件的 import 均不触发过滤。没有直接导入 testing 的 `_test.go` 文件会保留。
 
 **过滤只检查类型声明文件。** 生产文件中的 struct 若仅通过测试文件中的方法实现接口，公共语言接口无法返回这份方法来源，本插件无法精确过滤该关系。当前也不追踪嵌入方法的完整来源链。
+
+具名目标的别名使用目标类型的声明文件进行过滤，别名本身不增加实现关系依据；新定义使用自身的声明文件。
 
 通过 **Go Interfaces: 切换按声明文件过滤测试实现** 或设置页修改开关。命令只修改活动文件所属工作区文件夹的配置。
 
@@ -89,6 +98,8 @@ THIRD_PARTY_NOTICES.md  随包分发的第三方许可证
 ```
 
 2026-11-04 已完成格式检查、ESLint、类型检查、生产构建和 VSIX 打包。使用现有 Go 源文件进行了只读语法运行，核对类型声明、导入识别、名称偏移与 module 归属，没有调用 Go 工具。未编写或运行单元测试。
+
+别名解析切片已通过格式、lint、类型检查及打包；使用现有 `os/types.go` 与 `net/http/serve_test.go` 核对别名标记、具名引用分类、目标名称偏移和不支持类型分类。此运行仅验证语法元数据；跨包 definition 链、循环或歧义处理、别名去重、module 二次过滤和新定义的方法语义尚未在扩展宿主中验收。
 
 运行依赖审计 `npm audit --omit=dev` 为 0 项告警。原有开发工具链仍有 minimatch 的上游告警；开发依赖不进入 VSIX。宿主中的双向查询、测试过滤、导航、取消，以及多 module、远程环境仍需人工验收；本地静态检查不替代这些证据。
 

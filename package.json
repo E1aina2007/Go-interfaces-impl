@@ -76,6 +76,10 @@
       ],
       "commandPalette": [
         {
+          "command": "goInterfaces.findImplementations",
+          "when": "editorLangId == go"
+        },
+        {
           "command": "goInterfaces.findInterfaces",
           "when": "editorLangId == go"
         },
@@ -90,6 +94,11 @@
       ]
     },
     "commands": [
+      {
+        "command": "goInterfaces.findImplementations",
+        "title": "%command.findImplementations%",
+        "category": "Go Interfaces"
+      },
       {
         "command": "goInterfaces.findInterfaces",
         "title": "%command.findInterfaces%",

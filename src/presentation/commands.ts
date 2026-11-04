@@ -14,15 +14,12 @@ import {
 	type QuickPickItem,
 } from 'vscode';
 import type { TypeKind } from '../core/types';
-import {
-	type ImplementationQueries,
-	StaleQueryError,
-	type LocatedType,
-	type QueryResult,
-} from '../query/service';
+import { type ImplementationQueries, StaleQueryError, type QueryResult } from '../query/service';
+import type { LocatedType } from '../query/resolve';
 
 export const findInterfaces = 'goInterfaces.findInterfaces';
 export const findStructs = 'goInterfaces.findStructs';
+export const findImplementations = 'goInterfaces.findImplementations';
 
 interface ResultItem extends QuickPickItem {
 	readonly match: LocatedType;
@@ -38,6 +35,11 @@ export class ImplementationCommands implements Disposable {
 		private readonly output: LogOutputChannel,
 	) {
 		this.subscriptions = [
+			commands.registerCommand(
+				findImplementations,
+				(uri?: Uri, position?: Position, version?: number): Promise<void> =>
+					this.run('auto', uri, position, version),
+			),
 			commands.registerCommand(
 				findInterfaces,
 				(uri?: Uri, position?: Position, version?: number): Promise<void> =>
@@ -55,7 +57,7 @@ export class ImplementationCommands implements Disposable {
 	}
 
 	private async run(
-		kind: TypeKind,
+		kind: TypeKind | 'auto',
 		uri?: Uri,
 		position?: Position,
 		version?: number,
@@ -79,14 +81,17 @@ export class ImplementationCommands implements Disposable {
 			workspace.textDocuments.find(
 				(document) => document.uri.toString() === resource.toString(),
 			)?.version;
+		let title = 'Go Interfaces: Finding implementation relations';
+		if (kind === 'struct') {
+			title = 'Go Interfaces: Finding implemented interfaces';
+		} else if (kind === 'interface') {
+			title = 'Go Interfaces: Finding implementing structs';
+		}
 		try {
 			const result = await window.withProgress(
 				{
 					location: ProgressLocation.Notification,
-					title:
-						kind === 'struct'
-							? 'Go Interfaces: Finding implemented interfaces'
-							: 'Go Interfaces: Finding implementing structs',
+					title,
 					cancellable: true,
 				},
 				async (_, token): Promise<QueryResult> => {
@@ -128,7 +133,7 @@ export class ImplementationCommands implements Disposable {
 			const selected = await window.showQuickPick(
 				items,
 				{
-					title: `${result.subject.declaration.name} → ${kind === 'struct' ? 'interfaces' : 'structs'}`,
+					title: `${result.subject.declaration.name} → ${result.subject.declaration.kind === 'struct' ? 'interfaces' : 'structs'}`,
 					placeHolder: `Language-service results may be incomplete · ${result.hidden} filtered · ${result.skipped} unsupported · test filter checks declaration files`,
 					matchOnDescription: true,
 					matchOnDetail: true,

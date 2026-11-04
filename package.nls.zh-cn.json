@@ -1,6 +1,7 @@
 {
   "extension.description": "在 Go module 内查看接口与结构体的实现关系（开发中）",
   "command.showOutput": "查看输出",
+  "command.findImplementations": "查看类型实现关系",
   "command.findInterfaces": "查看实现的接口",
   "command.findStructs": "查看实现接口的结构体",
   "command.toggleTestingFilter": "切换按声明文件过滤测试实现",

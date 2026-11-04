@@ -3,7 +3,6 @@ import {
 	CancellationError,
 	CancellationTokenSource,
 	Location,
-	Range,
 	workspace,
 	type CancellationToken,
 	type Disposable,
@@ -12,21 +11,10 @@ import {
 	type Uri,
 } from 'vscode';
 import type { GoSyntax } from '../core/syntax';
-import type { GoDeclaration, GoFile, TypeKind } from '../core/types';
+import type { TypeKind } from '../core/types';
 import { GoProvider } from '../language/provider';
-import {
-	belongsToModule,
-	canonicalUri,
-	fileKey,
-	findModule,
-	type GoModule,
-} from '../workspace/module';
-
-export interface LocatedType {
-	readonly declaration: GoDeclaration;
-	readonly location: Location;
-	readonly testing: boolean;
-}
+import { belongsToModule, findModule, type GoModule } from '../workspace/module';
+import { TypeResolver, type CapturedFile, type LocatedType } from './resolve';
 
 export interface QueryResult {
 	readonly coverage: 'provider-limited';
@@ -37,12 +25,6 @@ export interface QueryResult {
 	readonly skipped: number;
 	readonly hideTesting: boolean;
 	readonly generation: number;
-}
-
-interface CapturedFile {
-	readonly document: TextDocument;
-	readonly version: number;
-	readonly syntax: GoFile;
 }
 
 export class StaleQueryError extends Error {
@@ -120,7 +102,7 @@ export class ImplementationQueries implements Disposable {
 	async query(
 		uri: Uri,
 		position: Position,
-		expected: TypeKind,
+		expected: TypeKind | 'auto',
 		caller: CancellationToken,
 		sourceVersion?: number,
 	): Promise<QueryResult> {
@@ -158,33 +140,7 @@ export class ImplementationQueries implements Disposable {
 			check();
 			return file;
 		};
-		const locate = async (location: Location): Promise<LocatedType | undefined> => {
-			if (location.uri.scheme !== 'file' || !location.uri.path.endsWith('.go')) {
-				return undefined;
-			}
-			const file = await read(location.uri);
-			if (file.syntax.hasErrors) {
-				throw new Error(`Fix Go syntax errors in ${location.uri.fsPath} before querying.`);
-			}
-			const offset = file.document.offsetAt(location.range.start);
-			const declaration = file.syntax.declarations.find(
-				(item) => item.start <= offset && offset < item.end,
-			);
-			if (!declaration) {
-				return undefined;
-			}
-			return {
-				declaration,
-				location: new Location(
-					location.uri,
-					new Range(
-						file.document.positionAt(declaration.start),
-						file.document.positionAt(declaration.end),
-					),
-				),
-				testing: location.uri.path.endsWith('_test.go') && file.syntax.importsTesting,
-			};
-		};
+		const resolver = new TypeResolver(this.provider, read, token);
 		try {
 			check();
 			if (!workspace.isTrusted) {
@@ -218,21 +174,27 @@ export class ImplementationQueries implements Disposable {
 			}
 			await this.provider.prepare(uri, token);
 			check();
-			let subject = await locate(new Location(uri, position));
-			if (!subject) {
+			let subject = await resolver.resolve(new Location(uri, position));
+			const offset = source.document.offsetAt(position);
+			const selectedDeclaration = source.syntax.declarations.some(
+				(item) => item.start <= offset && offset < item.end,
+			);
+			if (!subject && !selectedDeclaration) {
 				for (const location of await this.provider.definitions(uri, position, token)) {
-					subject = await locate(location);
-					if (subject) {
+					const candidate = await resolver.resolve(location);
+					if (!candidate || (subject && subject.id !== candidate.id)) {
+						subject = undefined;
 						break;
 					}
+					subject = candidate;
 				}
 			}
 			if (!subject) {
 				throw new Error(
-					'Select the name of a type declared directly as struct or interface. Referenced aliases are not supported yet.',
+					'Select a named struct or interface. Its type reference must resolve unambiguously within 32 declarations; pointers and generic instances are not supported.',
 				);
 			}
-			if (subject.declaration.kind !== expected) {
+			if (expected !== 'auto' && subject.declaration.kind !== expected) {
 				throw new Error(`This command requires a ${expected} type.`);
 			}
 			if (
@@ -270,10 +232,10 @@ export class ImplementationQueries implements Disposable {
 				if (!(await belongs)) {
 					continue;
 				}
-				const match = await locate(location);
+				const match = await resolver.resolve(location);
 				if (
 					!match ||
-					match.declaration.kind === expected ||
+					match.declaration.kind === subject.declaration.kind ||
 					match.declaration.generic ||
 					match.declaration.constraint ||
 					match.declaration.empty
@@ -281,7 +243,12 @@ export class ImplementationQueries implements Disposable {
 					skipped++;
 					continue;
 				}
-				const identity = `${fileKey(await canonicalUri(key))}:${match.declaration.start}`;
+				// Recheck the canonical type so a local alias cannot import a dependency into module results.
+				// 再次核对规范类型，避免通过本地别名把依赖类型加入当前模块结果
+				if (!(await belongsToModule(match.location.uri.toString(), module))) {
+					continue;
+				}
+				const identity = match.id;
 				if (seen.has(identity)) {
 					continue;
 				}

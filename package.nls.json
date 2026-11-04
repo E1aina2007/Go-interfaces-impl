@@ -1,6 +1,7 @@
 {
   "extension.description": "Go interface implementation navigation within a module (in development).",
   "command.showOutput": "Show Output",
+  "command.findImplementations": "Show Type Implementation Relations",
   "command.findInterfaces": "Show Implemented Interfaces",
   "command.findStructs": "Show Implementing Structs",
   "command.toggleTestingFilter": "Toggle Declaration-file Test Filter",

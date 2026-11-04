@@ -53,20 +53,46 @@ function isConstraint(type: Node): boolean {
 
 function declaration(node: Node): GoDeclaration | undefined {
 	const name = node.childForFieldName('name');
-	const type = node.childForFieldName('type');
-	if (!name || !type || (type.type !== 'struct_type' && type.type !== 'interface_type')) {
+	const rootType = node.childForFieldName('type');
+	if (!name || !rootType) {
 		return undefined;
+	}
+	let type: Node = rootType;
+	while (type.type === 'parenthesized_type') {
+		const child: Node | undefined = type.namedChildren.find(
+			(item): item is Node => item !== null && item.type !== 'comment',
+		);
+		if (!child) {
+			return undefined;
+		}
+		type = child;
+	}
+	const base = {
+		name: name.text,
+		start: name.startIndex,
+		end: name.endIndex,
+		generic: node.childForFieldName('type_parameters') !== null || type.type === 'generic_type',
+		alias: node.type === 'type_alias',
+	};
+	if (type.type === 'type_identifier' || type.type === 'qualified_type') {
+		return {
+			...base,
+			kind: 'reference',
+			target: type.childForFieldName('name')?.startIndex ?? type.startIndex,
+		};
+	}
+	// Pointers and composite types do not become structs merely because they mention a struct name.
+	// 指针和其他复合类型不会因为引用了 struct 名称就成为 struct
+	if (type.type !== 'struct_type' && type.type !== 'interface_type') {
+		return { ...base, kind: 'unsupported' };
 	}
 	const kind: TypeKind = type.type === 'struct_type' ? 'struct' : 'interface';
 	const elements = type.namedChildren.filter(
 		(child): child is Node => child !== null && child.type !== 'comment',
 	);
 	return {
-		name: name.text,
+		...base,
 		kind,
-		start: name.startIndex,
-		end: name.endIndex,
-		generic: node.childForFieldName('type_parameters') !== null,
 		empty: kind === 'interface' && elements.length === 0,
 		constraint: kind === 'interface' && isConstraint(type),
 	};
