@@ -2,7 +2,9 @@
 
 用于查看 Go module 内接口与结构体实现关系的 VS Code 插件，视觉呈现与交互计划参考 GoLand。
 
-当前版本完成了扩展基础框架：按需激活、命令注册、日志、开发调试、静态检查和 VSIX 打包。接口分析与导航尚未实现。
+当前采用纯 TypeScript 实现。已完成扩展框架、Tree-sitter 语法读取和 module 文件边界识别；接口查询与导航将在下一切片接入。
+
+插件不包含 Go 源码、Go module、自有 Go 分析器或 Go 构建检查。后续查询通过 VS Code 的公开接口复用官方 Go 扩展，因此使用查询功能仍需要安装并配置 Go 扩展及其语言服务。
 
 业务与代码方案保存在本地 `docs/` 目录，不纳入版本控制。接口分析、导航和过滤功能将按模块逐步实现。
 
@@ -66,7 +68,7 @@ dist/                 构建产物，不纳入版本控制
 - 入口使用普通函数，命令与日志通过 `context.subscriptions` 释放
 - 日志使用 VS Code 自带的 `LogOutputChannel`；通过 VS Code 的日志级别操作调整详细程度
 - 使用 `extensionKind: workspace`，为后续在工作区所在的扩展宿主中分析 Go 代码保留位置；远程环境仍需后续验证
-- 运行时代码目前只依赖 VS Code API；构建、格式化、静态检查和打包使用成熟工具
+- 运行时代码使用 VS Code API、Node.js 与 `@vscode/tree-sitter-wasm`；打包只复制预构建的解析运行时和 Go 语法 WASM 文件，不编译解析器或 Go 程序
 - `@types/vscode` 固定为最低支持的 API 版本，避免开发时误用较新 API
 - 重要逻辑使用英文、中文各一行的注释，中文注释不使用中文句号
 
@@ -78,7 +80,7 @@ dist/                 构建产物，不纳入版本控制
 npm run package
 ```
 
-根目录生成 `go-interfaces-impl-0.0.1.vsix`，可通过 VS Code 的 `Extensions: Install from VSIX...` 安装。`.vscodeignore` 只允许扩展入口产物、清单、翻译与说明文档进入包，源码、开发依赖和 source map 不随包分发。
+根目录生成 `go-interfaces-impl-0.0.1.vsix`，可通过 VS Code 的 `Extensions: Install from VSIX...` 安装。`.vscodeignore` 只允许扩展入口、两份解析 WASM、清单、翻译、说明及第三方许可证进入包，源码、开发依赖和 source map 不随包分发。
 
 当前尚未设置 Marketplace 的 `publisher`，许可证保留为 `UNLICENSED`；本地打包使用 `--skip-license`。正式发布前需确定发布者与许可证，并调整打包配置。仓库没有自动发布流程。
 

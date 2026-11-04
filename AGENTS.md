@@ -12,6 +12,13 @@
 
 上述内容是开发目标，不代表相关功能已经实现。
 
+## 实现语言与工具边界
+
+- 插件源码仅使用 JavaScript 或 TypeScript，不新增 Go 源码、Go module 或 Go 分析子进程
+- 开发、检查与打包流程不调用 `go build`、`go vet` 或其他 Go 工具命令
+- 通过 VS Code 公开语言接口复用官方 Go 扩展，不访问其内部 language client，不自行管理 gopls 进程
+- 已安装的 Go 扩展仍负责其自身的 Go SDK 与语言服务；在 README 中明确这项运行依赖及公共接口的能力边界
+
 ## 代码风格
 
 - 即使使用 JavaScript 或 TypeScript，也保持 Go 风格的简洁、直接和可读性

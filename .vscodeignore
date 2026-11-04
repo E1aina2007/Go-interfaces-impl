@@ -4,3 +4,5 @@
 !package.nls.zh-cn.json
 !README.md
 !dist/extension.js
+!dist/wasm/*.wasm
+!THIRD_PARTY_NOTICES.md
