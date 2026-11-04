@@ -1,0 +1,73 @@
+{
+  "name": "go-interfaces-impl",
+  "displayName": "Go Interfaces",
+  "description": "%extension.description%",
+  "version": "0.0.1",
+  "private": true,
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/E1aina2007/Go-interfaces-impl.git"
+  },
+  "bugs": {
+    "url": "https://github.com/E1aina2007/Go-interfaces-impl/issues"
+  },
+  "engines": {
+    "vscode": "^1.110.0",
+    "node": "^24.15.0 || >=26.0.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "keywords": [
+    "go",
+    "golang",
+    "interface",
+    "implementation"
+  ],
+  "extensionKind": [
+    "workspace"
+  ],
+  "activationEvents": [
+    "onLanguage:go"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "goInterfaces.showOutput",
+        "title": "%command.showOutput%",
+        "category": "Go Interfaces"
+      }
+    ]
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit",
+    "lint": "eslint . --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm run format:check && npm run lint && npm run check-types",
+    "compile": "npm run check-types && node esbuild.mjs",
+    "build": "npm run check && node esbuild.mjs --production",
+    "watch": "run-p watch:*",
+    "watch:esbuild": "node esbuild.mjs --watch",
+    "watch:types": "tsc --noEmit --watch --preserveWatchOutput",
+    "vscode:prepublish": "npm run build",
+    "package": "vsce package --no-dependencies --skip-license",
+    "package:files": "vsce ls --no-dependencies"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.0.0",
+    "@types/vscode": "1.110.0",
+    "@vscode/vsce": "^4.1.0",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.14.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.14.0",
+    "npm-run-all2": "^9.0.4",
+    "prettier": "^3.9.10",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.72.1"
+  }
+}

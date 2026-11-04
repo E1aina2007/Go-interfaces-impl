@@ -1,0 +1,4 @@
+{
+  "extension.description": "在 Go module 内查看接口与结构体的实现关系（开发中）",
+  "command.showOutput": "查看输出"
+}
