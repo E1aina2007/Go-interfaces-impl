@@ -43,14 +43,20 @@ export class ImplementationGutter implements Disposable {
 		private readonly annotations: ImplementationAnnotations,
 		extensionUri: Uri,
 	) {
+		// Keep the original 16px badge at its natural size and let VS Code select its theme variant.
+		// 原创 16 像素徽标按原始大小显示，由 VS Code 选择适合当前主题的版本
 		this.implementsIcon = window.createTextEditorDecorationType({
 			gutterIconPath: Uri.joinPath(extensionUri, 'media', 'implements.svg'),
-			gutterIconSize: 'contain',
+			dark: { gutterIconPath: Uri.joinPath(extensionUri, 'media', 'implements-dark.svg') },
+			gutterIconSize: 'auto',
 			rangeBehavior: DecorationRangeBehavior.ClosedClosed,
 		});
 		this.implementedByIcon = window.createTextEditorDecorationType({
 			gutterIconPath: Uri.joinPath(extensionUri, 'media', 'implemented-by.svg'),
-			gutterIconSize: 'contain',
+			dark: {
+				gutterIconPath: Uri.joinPath(extensionUri, 'media', 'implemented-by-dark.svg'),
+			},
+			gutterIconSize: 'auto',
 			rangeBehavior: DecorationRangeBehavior.ClosedClosed,
 		});
 		this.changed = annotations.onDidChange(() => {

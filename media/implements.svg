@@ -1,4 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
-  <path fill="none" stroke="#39a86b" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M4 12h6a2 2 0 0 0 2-2V3m-3 3 3-3 3 3"/>
-  <circle cx="4" cy="12" r="2" fill="#39a86b"/>
+<!-- Original interface badge and navigation connector for Go Interfaces. -->
+<!-- Go Interfaces 原创接口徽标与导航连线 -->
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
+  <rect x="1.25" y="3.25" width="9.5" height="9.5" rx="2.25" fill="#F0F8F4" stroke="#4B9278" stroke-width="1.25"/>
+  <path d="M4.75 6H4v4h.75M7.25 6H8v4h-.75" stroke="#2F7059" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M10.75 9.25h.5a1.5 1.5 0 0 0 1.5-1.5v-6M10.75 3.75l2-2 2 2" stroke="#586F86" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

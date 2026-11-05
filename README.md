@@ -11,6 +11,7 @@
 - 使用 **Go Interfaces: 查看类型实现关系** / **Show Type Implementation Relations** 自动选择方向，适用于类型别名与基于具名类型的新定义
 - 自动查询当前编辑器可见的类型声明：struct 上方显示 `Implements (2) | Reader | Closer`，interface 上方显示 `Implemented by (2) | File | Buffer`，点击名称直接跳转
 - 有匹配结果时，在声明行左侧显示方向图标；悬停可查看名称、路径与导航链接
+- 原创圆角接口徽标配合方向箭头，绿色表示实现接口、蓝色表示存在实现者，自动适配深浅主题
 - 上方最多显示 6 个关联名称，点击名称前的方向与数量可打开完整列表；名称后的 `?` 表示测试来源未完全确认
 - 从类型引用处发起查询；编辑器右键菜单和命令面板保留两个方向的操作
 - 将语言服务返回的位置限定到当前文件所属的 module，排除嵌套 module、vendor 和依赖目录；使用原生列表选择并跳转
@@ -109,7 +110,6 @@ src/extension.ts       入口与资源释放
 .vscode/               F5 调试与构建任务
 .github/workflows/     Windows / Linux 的 Node.js 检查和打包
 esbuild.mjs            扩展构建与两份 WASM 资源复制
-THIRD_PARTY_NOTICES.md  随包分发的第三方许可证
 ```
 
 2026-11-04 已完成格式检查、ESLint、类型检查、生产构建和 VSIX 打包。使用现有 Go 源文件进行了只读语法运行，核对类型声明、导入识别、名称偏移与 module 归属，没有调用 Go 工具。未编写或运行单元测试。
@@ -132,7 +132,7 @@ THIRD_PARTY_NOTICES.md  随包分发的第三方许可证
 npm run package
 ```
 
-生成 `go-interfaces-impl-0.0.2.vsix`，通过 **Extensions: Install from VSIX...** 安装。允许列表只包含入口 JS、两份 WASM、两份 SVG 图标、清单、翻译、README 与许可证，不包含 Go 可执行文件、源码、开发依赖或 source map。
+生成 `go-interfaces-impl-0.0.3.vsix`，通过 **Extensions: Install from VSIX...** 安装。允许列表只包含入口 JS、两份 WASM、四份原创 SVG 图标（两个方向各含深浅主题版本）、清单、翻译，以及包含第三方许可说明的 README，不包含 Go 可执行文件、源码、开发依赖或 source map。
 
 当前未设置 Marketplace publisher，许可证保留为 `UNLICENSED`；本地打包使用 `--skip-license`。正式发布前仍需确定发布者与许可证。
 
@@ -142,3 +142,84 @@ npm run package
 - [VS Code 公开命令](https://code.visualstudio.com/api/references/commands)：definition、implementation 和 document symbol
 - [Tree-sitter WASM](https://github.com/microsoft/vscode-tree-sitter-wasm)：预构建的语法运行时和 Go 语法
 - [ESLint](https://github.com/microsoft/vscode-eslint) / [Prettier](https://github.com/prettier/prettier-vscode)：沿用初始化时参考的扩展组织和工具链做法
+
+## 第三方许可声明
+
+随扩展分发的 Tree-sitter 运行时与 Go 语法资源适用以下许可。
+
+<details>
+<summary>展开查看第三方许可全文</summary>
+
+### @vscode/tree-sitter-wasm
+
+    MIT License
+
+    Copyright (c) Microsoft Corporation.
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE
+
+### Tree-sitter
+
+The MIT License (MIT)
+
+Copyright (c) 2018-2024 Max Brunsfeld
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+### tree-sitter-go
+
+The MIT License (MIT)
+
+Copyright (c) 2014 Max Brunsfeld
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+</details>
