@@ -57,6 +57,11 @@ export class ImplementationQueries implements Disposable {
 		};
 		const invalidate = (): void => {
 			this.generation++;
+			// Stop waiting for stale providers; the generation check still reports why the query ended.
+			// 停止等待已过期的语言服务请求，仍通过 generation 检查说明查询结束原因
+			for (const request of this.pending) {
+				request.cancel();
+			}
 		};
 		const watcher = workspace.createFileSystemWatcher('**/*.{go,mod,sum,work}');
 		this.subscriptions = [
@@ -91,6 +96,7 @@ export class ImplementationQueries implements Disposable {
 			workspace.onDidChangeConfiguration((event) => {
 				if (
 					event.affectsConfiguration('go') ||
+					event.affectsConfiguration('gopls') ||
 					event.affectsConfiguration('goInterfaces')
 				) {
 					invalidate();
@@ -122,14 +128,19 @@ export class ImplementationQueries implements Disposable {
 		// Check workspace changes and captured document versions before accepting asynchronous results.
 		// 接受异步结果前同时核对工作区变化和已捕获文档版本
 		const check = (): void => {
-			if (this.disposed || token.isCancellationRequested) {
+			if (this.disposed || caller.isCancellationRequested) {
 				throw new CancellationError();
 			}
+			// Invalidation cancels our wait internally; keep it distinct from the caller's explicit cancellation.
+			// 失效会在内部取消等待，仍需与调用方主动取消区分
 			if (
 				generation !== this.generation ||
 				[...captured.values()].some((file) => file.document.version !== file.version)
 			) {
 				throw new StaleQueryError();
+			}
+			if (token.isCancellationRequested) {
+				throw new CancellationError();
 			}
 		};
 		const read = async (resource: Uri): Promise<CapturedFile> => {
@@ -139,6 +150,7 @@ export class ImplementationQueries implements Disposable {
 				return previous;
 			}
 			const document = await workspace.openTextDocument(resource);
+			check();
 			const version = document.version;
 			const syntax = await this.syntax.read(document.getText());
 			const file = { document, version, syntax };
