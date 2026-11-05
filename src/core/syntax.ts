@@ -1,6 +1,13 @@
 import path from 'node:path';
 import { Language, Parser, type Node } from '@vscode/tree-sitter-wasm';
-import type { GoDeclaration, GoFile, GoInterfaceMethod, GoMethod, TypeKind } from './types';
+import type {
+	GoDeclaration,
+	GoFile,
+	GoInterfaceEmbedding,
+	GoInterfaceMethod,
+	GoMethod,
+	TypeKind,
+} from './types';
 
 function importsTesting(literal: Node): boolean {
 	const text = literal.text;
@@ -36,12 +43,16 @@ function isConstraint(type: Node): boolean {
 			return true;
 		}
 		for (const member of members) {
-			if (!['type_identifier', 'qualified_type', 'generic_type'].includes(member.type)) {
+			const term = unparenthesized(member);
+			if (
+				!term ||
+				!['type_identifier', 'qualified_type', 'generic_type'].includes(term.type)
+			) {
 				return true;
 			}
 			if (
 				/^(bool|byte|comparable|complex64|complex128|float32|float64|int|int8|int16|int32|int64|rune|string|uint|uint8|uint16|uint32|uint64|uintptr)$/.test(
-					member.text,
+					term.text,
 				)
 			) {
 				return true;
@@ -157,6 +168,7 @@ export class GoSyntax {
 		try {
 			const declarations: GoDeclaration[] = [];
 			const interfaceMethods: GoInterfaceMethod[] = [];
+			const interfaceEmbeddings: GoInterfaceEmbedding[] = [];
 			for (const node of tree.rootNode.descendantsOfType(['type_spec', 'type_alias'])) {
 				if (!node) {
 					continue;
@@ -170,6 +182,25 @@ export class GoSyntax {
 					// Only direct interface members are requirements here; nested parameter types are separate interfaces.
 					// 此处仅记录接口的直接成员，参数中的嵌套接口属于其他类型
 					for (const member of type?.namedChildren ?? []) {
+						if (member?.type === 'type_elem') {
+							const terms = member.namedChildren.filter(
+								(term): term is Node => term !== null && term.type !== 'comment',
+							);
+							const reference =
+								terms.length === 1 ? unparenthesized(terms[0]) : undefined;
+							let target: number | null = null;
+							if (
+								reference?.type === 'type_identifier' ||
+								reference?.type === 'qualified_type'
+							) {
+								target =
+									reference.childForFieldName('name')?.startIndex ??
+									reference.startIndex;
+							}
+							// Preserve unsupported elements so an incomplete method set never looks fully resolved.
+							// 保留不支持的元素，避免把不完整的方法集当作已完整解析
+							interfaceEmbeddings.push({ owner: item.start, target });
+						}
 						const name =
 							member?.type === 'method_elem'
 								? member.childForFieldName('name')
@@ -199,6 +230,7 @@ export class GoSyntax {
 			return {
 				declarations,
 				interfaceMethods,
+				interfaceEmbeddings,
 				methods,
 				importsTesting: testing,
 				hasErrors: tree.rootNode.hasError,

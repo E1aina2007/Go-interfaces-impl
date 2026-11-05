@@ -80,6 +80,8 @@ export class ImplementationQueries implements Disposable {
 				}
 			}),
 			workspace.onDidCloseTextDocument((document) => {
+				// Discarding a dirty buffer changes the source; closing a clean provider-opened file does not.
+				// 丢弃未保存缓冲区会改变源码，语言服务打开的干净文档关闭时无需使查询过期
 				if (dirty.delete(document.uri.toString())) {
 					invalidate();
 				}
@@ -117,6 +119,8 @@ export class ImplementationQueries implements Disposable {
 		const token = request.token;
 		const generation = this.generation;
 		const captured = new Map<string, CapturedFile>();
+		// Check workspace changes and captured document versions before accepting asynchronous results.
+		// 接受异步结果前同时核对工作区变化和已捕获文档版本
 		const check = (): void => {
 			if (this.disposed || token.isCancellationRequested) {
 				throw new CancellationError();
@@ -246,6 +250,8 @@ export class ImplementationQueries implements Disposable {
 				matches.set(identity, match);
 			}
 			const candidates = [...matches.values()];
+			// Disabling filtering also skips embedded-interface expansion and method-origin provider calls.
+			// 关闭过滤时也跳过嵌入接口展开和方法来源的语言服务调用
 			const filtered = hideTesting
 				? await new TestingFilter(this.provider, resolver, read, belongs, token).apply(
 						subject,

@@ -22,9 +22,11 @@ export interface LocatedType {
 	readonly location: Location;
 	readonly testing: boolean;
 	readonly methods: readonly LocatedMethod[];
+	readonly interfaces: readonly (Location | null)[];
 }
 
 export interface LocatedMethod {
+	readonly id: string;
 	readonly name: string;
 	readonly location: Location;
 }
@@ -49,6 +51,8 @@ export class TypeResolver {
 			return this.resolve(location);
 		}
 		let result: LocatedType | undefined;
+		// Multiple definition locations are usable only when they resolve to the same canonical type.
+		// 多个定义位置只有归并为同一规范类型时才可使用，避免任意选取一个目标
 		for (const definition of await this.provider.definitions(
 			location.uri,
 			location.range.start,
@@ -84,7 +88,10 @@ export class TypeResolver {
 		if (!declaration || declaration.kind === 'unsupported') {
 			return undefined;
 		}
-		const id = `${fileKey(await canonicalUri(location.uri.toString()))}:${declaration.start}`;
+		// Physical file identity merges symlink paths while keeping distinct declarations separate.
+		// 物理文件身份用于归并符号链接路径，同时保留不同声明之间的区别
+		const fileId = fileKey(await canonicalUri(location.uri.toString()));
+		const id = `${fileId}:${declaration.start}`;
 		if (visited.has(id) || visited.size >= 32) {
 			return undefined;
 		}
@@ -94,6 +101,7 @@ export class TypeResolver {
 		}
 		let type: GoType;
 		let methods: readonly LocatedMethod[];
+		let interfaces: readonly (Location | null)[];
 		if (declaration.kind === 'reference') {
 			if (declaration.generic) {
 				return undefined;
@@ -133,12 +141,16 @@ export class TypeResolver {
 				constraint: target.declaration.constraint,
 				embedded: target.declaration.embedded,
 			};
+			// Reuse original interface member positions without inferring method inheritance for structs.
+			// 复用原接口成员的声明位置，不据此推断结构体的方法继承
 			methods = target.methods;
+			interfaces = target.interfaces;
 		} else {
 			type = declaration;
 			methods = file.syntax.interfaceMethods
 				.filter((item) => item.owner === declaration.start)
 				.map((item) => ({
+					id: `${fileId}:${item.start}`,
 					name: item.name,
 					location: new Location(
 						location.uri,
@@ -148,6 +160,13 @@ export class TypeResolver {
 						),
 					),
 				}));
+			interfaces = file.syntax.interfaceEmbeddings
+				.filter((item) => item.owner === declaration.start)
+				.map((item) =>
+					item.target === null
+						? null
+						: new Location(location.uri, file.document.positionAt(item.target)),
+				);
 		}
 		const result = {
 			id,
@@ -161,6 +180,7 @@ export class TypeResolver {
 			),
 			testing: location.uri.path.endsWith('_test.go') && file.syntax.importsTesting,
 			methods,
+			interfaces,
 		};
 		this.resolved.set(id, result);
 		return result;

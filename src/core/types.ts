@@ -24,6 +24,13 @@ export interface GoInterfaceMethod extends GoIdentifier {
 	readonly owner: number;
 }
 
+export interface GoInterfaceEmbedding {
+	readonly owner: number;
+	// A null target preserves an unsupported requirement instead of implying that none exists.
+	// null 目标保留无法解析的要求，不能将其视为没有要求
+	readonly target: number | null;
+}
+
 export interface GoMethod extends GoIdentifier {
 	readonly receiver: number;
 	readonly generic: boolean;
@@ -43,6 +50,7 @@ export type GoDeclaration = GoType | GoTypeReference | UnsupportedGoType;
 export interface GoFile {
 	readonly declarations: readonly GoDeclaration[];
 	readonly interfaceMethods: readonly GoInterfaceMethod[];
+	readonly interfaceEmbeddings: readonly GoInterfaceEmbedding[];
 	readonly methods: readonly GoMethod[];
 	readonly importsTesting: boolean;
 	readonly hasErrors: boolean;
