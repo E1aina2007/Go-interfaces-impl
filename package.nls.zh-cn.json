@@ -6,5 +6,6 @@
   "command.findStructs": "查看实现接口的结构体",
   "command.toggleTestingFilter": "切换测试来源过滤",
   "configuration.hideTestingImplementations": "类型声明位于直接导入 testing 的 _test.go 文件，或必要的直接方法仅报告这种来源时隐藏关系。同一方法同时报告可保留来源时，不因该方法删除关系；无法确认或涉及方法提升的来源保留并标记，结果仍受语言服务覆盖范围限制。",
-  "configuration.codeLens": "在 struct 和 interface 声明上方显示实现关系查询入口。"
+  "configuration.codeLens": "自动在可见类型声明上方显示可点击跳转的相关接口或结构体名称。",
+  "configuration.gutterIcons": "在有匹配结果的类型声明行左侧显示实现方向图标，悬停可查看跳转链接。"
 }

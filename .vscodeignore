@@ -5,4 +5,5 @@
 !README.md
 !dist/extension.js
 !dist/wasm/*.wasm
+!media/*.svg
 !THIRD_PARTY_NOTICES.md

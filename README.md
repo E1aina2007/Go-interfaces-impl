@@ -1,6 +1,6 @@
 # Go Interfaces Impl
 
-用于查看当前 Go module 内 struct 与 interface 的实现关系，并提供声明上方的 CodeLens、原生结果列表和跳转。
+用于查看当前 Go module 内 struct 与 interface 的实现关系，在类型声明行左侧显示方向图标，上方显示可点击跳转的关联类型名称，并保留原生结果列表。
 
 插件源码使用 TypeScript。开发与打包仅需要 Node.js 和 npm；仓库不包含 Go 源码、Go module、自有分析器或 Go 构建检查。语义查询通过 VS Code 的公开语言接口复用官方 Go 扩展，因此使用查询功能仍需配置该扩展的 Go SDK 与 gopls。
 
@@ -9,14 +9,19 @@
 - 在 struct 名称处执行 **Go Interfaces: 查看实现的接口** / **Show Implemented Interfaces**
 - 在 interface 名称处执行 **Go Interfaces: 查看实现接口的结构体** / **Show Implementing Structs**
 - 使用 **Go Interfaces: 查看类型实现关系** / **Show Type Implementation Relations** 自动选择方向，适用于类型别名与基于具名类型的新定义
-- 从类型引用处发起查询，或点击声明上方的 CodeLens；编辑器右键菜单也提供两个方向的操作
+- 自动查询当前编辑器可见的类型声明：struct 上方显示 `Implements (2) | Reader | Closer`，interface 上方显示 `Implemented by (2) | File | Buffer`，点击名称直接跳转
+- 有匹配结果时，在声明行左侧显示方向图标；悬停可查看名称、路径与导航链接
+- 上方最多显示 6 个关联名称，点击名称前的方向与数量可打开完整列表；名称后的 `?` 表示测试来源未完全确认
+- 从类型引用处发起查询；编辑器右键菜单和命令面板保留两个方向的操作
 - 将语言服务返回的位置限定到当前文件所属的 module，排除嵌套 module、vendor 和依赖目录；使用原生列表选择并跳转
 - 支持按类型声明和已报告的直接方法位置过滤测试来源，显示隐藏数量、无法分类数量及来源未确认标记
 - 查询支持取消等待；文档、工作区或配置变化后拦截过期结果，跳转前再次检查有效性
 
 Go 源码、module/work 配置、工作区或 `go`、`gopls`、`goInterfaces` 设置变化时，查询会过期并立即停止本插件对公开 provider 的等待；源码或设置变化显示重新查询提示，主动取消保持静默。`gopls` 设置包括影响文件选择的构建标记与环境配置。[Go 扩展设置说明](https://github.com/golang/vscode-go/blob/master/docs/settings.md#gopls)
 
-这些是已接入的代码链路，真实 VS Code 扩展宿主中的查询、跳转与 CodeLens 交互尚未完成人工验收。
+用户已反馈旧版可以显示实现查询结果。新版在开发宿主中已核对 `schema.Memory` 的实现者名称、左侧图标以及跳转到 `ConversationBuffer`；该样例不代表全部类型、刷新与过滤场景均已验收。
+
+左侧图标使用公开 gutter decoration API；该接口没有图标单击回调，图标提供悬停导航链接，上方名称支持直接单击跳转。显示图标需要启用 VS Code 的 `editor.glyphMargin`，显示上方名称需要启用 `editor.codeLens`。
 
 ## 能力边界
 
@@ -28,7 +33,7 @@ Go 源码、module/work 配置、工作区或 `go`、`gopls`、`goInterfaces` �
 
 引用链通过公开 definition provider 解析，单次最多跟进 32 个声明，防止循环；有歧义或无法解析的主体明确报错，结果候选计入不支持数量。显式指针、其他复合类型、泛型声明与实例、空接口及可识别的类型集合约束仍不支持。命名类型构成的复杂约束仍依赖语言服务，无法保证精确识别。
 
-引用其他具名类型的声明显示通用 CodeLens，点击后才解析方向；普通 struct / interface 仍显示对应方向的操作入口，不为可见文档预先执行语言查询。
+类型别名与具名引用沿用原有公开 definition 解析规则，解析后按实际类型种类显示关联名称与方向图标。后台只查询可见声明，不扫描整个 module；打开文件、滚动及源码或配置变化后，合并 400 毫秒内的刷新事件并串行执行查询。暂未返回结果时显示查询中入口，查询失败时显示重试入口并记录日志，不把失败显示为零个实现。已查询但没有可展示匹配时不显示名称或图标。
 
 module 边界通过当前文件最近的 `go.mod` 和规范化后的物理路径确定，不执行 Go 命令读取环境。`go.work` 的其他 module 不进入结果；当前文件必须位于打开的文件系统工作区中。虚拟工作区与未信任工作区不启用本扩展。
 
@@ -86,9 +91,10 @@ npm run compile
 | 配置                                      | 默认值 | 用途                                 |
 | ----------------------------------------- | ------ | ------------------------------------ |
 | `goInterfaces.hideTestingImplementations` | `true` | 按上述声明与直接方法规则过滤测试来源 |
-| `goInterfaces.codeLens`                   | `true` | 显示类型声明上方的查询入口           |
+| `goInterfaces.codeLens`                   | `true` | 自动显示类型声明上方的关联名称       |
+| `goInterfaces.gutterIcons`                | `true` | 显示声明行左侧的实现方向图标         |
 
-CodeLens 按需读取当前文档语法，不预先扫描整个 module，也不展示未经查询的实现数量。
+名称与图标共用同一份已过滤查询结果。源码、工作区和相关设置变化时立即清除旧标记并重新查询可见声明；切换文件后释放隐藏文档的展示缓存。导航同时检查文档版本与查询 generation，拦截旧名称、旧悬停链接和旧列表的过期跳转。计数只表示当前 provider 返回的可展示结果，不表示完整实现数量。
 
 ## 目录与验证
 
@@ -98,6 +104,7 @@ src/workspace/         文件规范化、module 边界与归属
 src/language/          VS Code 公开语言接口适配
 src/query/             查询协调、版本校验、范围与过滤
 src/presentation/      命令、结果导航与 CodeLens
+media/                 左侧实现方向 SVG 图标
 src/extension.ts       入口与资源释放
 .vscode/               F5 调试与构建任务
 .github/workflows/     Windows / Linux 的 Node.js 检查和打包
@@ -125,7 +132,7 @@ THIRD_PARTY_NOTICES.md  随包分发的第三方许可证
 npm run package
 ```
 
-生成 `go-interfaces-impl-0.0.1.vsix`，通过 **Extensions: Install from VSIX...** 安装。允许列表只包含入口 JS、两份 WASM、清单、翻译、README 与许可证，不包含 Go 可执行文件、源码、开发依赖或 source map。
+生成 `go-interfaces-impl-0.0.2.vsix`，通过 **Extensions: Install from VSIX...** 安装。允许列表只包含入口 JS、两份 WASM、两份 SVG 图标、清单、翻译、README 与许可证，不包含 Go 可执行文件、源码、开发依赖或 source map。
 
 当前未设置 Marketplace publisher，许可证保留为 `UNLICENSED`；本地打包使用 `--skip-license`。正式发布前仍需确定发布者与许可证。
 

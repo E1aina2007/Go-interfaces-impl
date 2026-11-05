@@ -2,7 +2,7 @@
   "name": "go-interfaces-impl",
   "displayName": "Go Interfaces",
   "description": "%extension.description%",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "license": "UNLICENSED",
   "repository": {
@@ -58,6 +58,12 @@
           "default": true,
           "scope": "resource",
           "description": "%configuration.codeLens%"
+        },
+        "goInterfaces.gutterIcons": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "description": "%configuration.gutterIcons%"
         }
       }
     },

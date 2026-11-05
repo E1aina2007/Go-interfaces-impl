@@ -2,6 +2,7 @@ import path from 'node:path';
 import {
 	CancellationError,
 	CancellationTokenSource,
+	EventEmitter,
 	Location,
 	workspace,
 	type CancellationToken,
@@ -37,10 +38,12 @@ export class StaleQueryError extends Error {
 
 export class ImplementationQueries implements Disposable {
 	private readonly provider = new GoProvider();
+	private readonly invalidated = new EventEmitter<void>();
 	private readonly subscriptions: Disposable[];
 	private readonly pending = new Set<CancellationTokenSource>();
 	private generation = 0;
 	private disposed = false;
+	readonly onDidInvalidate = this.invalidated.event;
 
 	constructor(private readonly syntax: GoSyntax) {
 		const dirty = new Set(
@@ -62,6 +65,7 @@ export class ImplementationQueries implements Disposable {
 			for (const request of this.pending) {
 				request.cancel();
 			}
+			this.invalidated.fire();
 		};
 		const watcher = workspace.createFileSystemWatcher('**/*.{go,mod,sum,work}');
 		this.subscriptions = [
@@ -304,5 +308,6 @@ export class ImplementationQueries implements Disposable {
 		for (const subscription of this.subscriptions) {
 			subscription.dispose();
 		}
+		this.invalidated.dispose();
 	}
 }

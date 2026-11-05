@@ -6,5 +6,6 @@
   "command.findStructs": "Show Implementing Structs",
   "command.toggleTestingFilter": "Toggle Test Source Filter",
   "configuration.hideTestingImplementations": "Hide relations with a type declaration or required direct method reported only in _test.go files importing testing. An eligible source for the same method prevents filtering on that method. Unresolved and promoted method sources are retained and marked; language-service coverage remains limited.",
-  "configuration.codeLens": "Show implementation query actions above struct and interface declarations."
+  "configuration.codeLens": "Automatically show clickable related interface or struct names above visible type declarations.",
+  "configuration.gutterIcons": "Show implementation direction icons beside type declarations with reported matches. Hover for navigation links."
 }
