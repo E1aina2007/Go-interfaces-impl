@@ -36,6 +36,8 @@ Go 源码、module/work 配置、工作区或 `go`、`gopls`、`goInterfaces` �
 
 类型别名与具名引用沿用原有公开 definition 解析规则，解析后按实际类型种类显示关联名称与方向图标。后台只查询可见声明，不扫描整个 module；打开文件、滚动及源码或配置变化后，合并 400 毫秒内的刷新事件并串行执行查询。暂未返回结果时显示查询中入口，查询失败时显示重试入口并记录日志，不把失败显示为零个实现。已查询但没有可展示匹配时不显示名称或图标。
 
+源码或设置变化后，已显示的名称和图标会按声明名称保留到新结果返回，避免输入时反复闪烁；刷新期间这些名称和悬停内容只作文字展示，不可点击跳转。当前文件存在语法错误时不发起新查询，继续保留旧展示；其他候选文件存在语法错误时，只将对应候选计入摘要中的 `unreadable`，不使整次查询失败。语言服务返回的同类关系（接口之间）不属于本插件的关系范围，不计入 `unsupported`。同一 generation 内，每个文件只确认一次语言服务就绪。
+
 module 边界通过当前文件最近的 `go.mod` 和规范化后的物理路径确定，不执行 Go 命令读取环境。`go.work` 的其他 module 不进入结果；当前文件必须位于打开的文件系统工作区中。虚拟工作区与未信任工作区不启用本扩展。
 
 本地别名指向依赖类型时，不会将该依赖类型作为本 module 的新类型计入结果；本地新定义则保留自己的归属。结果仍受语言服务返回的位置范围限制。
@@ -106,6 +108,7 @@ src/language/          VS Code 公开语言接口适配
 src/query/             查询协调、版本校验、范围与过滤
 src/presentation/      命令、结果导航与 CodeLens
 media/                 左侧实现方向 SVG 图标
+examples/acceptance/   人工验收用 Go 示例，不含 go.mod，不进入 VSIX
 src/extension.ts       入口与资源释放
 .vscode/               F5 调试与构建任务
 .github/workflows/     Windows / Linux 的 Node.js 检查和打包
@@ -122,6 +125,8 @@ esbuild.mjs            扩展构建与两份 WASM 资源复制
 
 2026-11-05 补齐 `gopls` 配置变更监听，并在查询失效时取消内部等待，保留过期提示与主动取消的区别。该行为仍需在扩展宿主中核对，尤其是 provider 等待期间修改源码、构建标记及环境配置的情况。
 
+2026-11-06 编辑期稳定性切片（0.0.4）通过格式、lint、类型检查、生产构建和 VSIX 打包。输入时保留旧展示、过期名称不可点击、语法错误降级和就绪检查复用尚需在扩展宿主中按 [examples/acceptance](examples/acceptance/README.md) 核对；未编写或运行单元测试，未调用 Go 工具。
+
 运行依赖审计 `npm audit --omit=dev` 为 0 项告警。原有开发工具链仍有 minimatch 的上游告警；开发依赖不进入 VSIX。宿主中的双向查询、测试过滤、导航、取消，以及多 module、远程环境仍需人工验收；本地静态检查不替代这些证据。
 
 业务设计与模块计划位于被忽略的本地 `docs/`，不会纳入提交。
@@ -132,7 +137,7 @@ esbuild.mjs            扩展构建与两份 WASM 资源复制
 npm run package
 ```
 
-生成 `go-interfaces-impl-0.0.3.vsix`，通过 **Extensions: Install from VSIX...** 安装。允许列表只包含入口 JS、两份 WASM、四份原创 SVG 图标（两个方向各含深浅主题版本）、清单、翻译，以及包含第三方许可说明的 README，不包含 Go 可执行文件、源码、开发依赖或 source map。
+生成 `go-interfaces-impl-0.0.4.vsix`，通过 **Extensions: Install from VSIX...** 安装。允许列表只包含入口 JS、两份 WASM、四份原创 SVG 图标（两个方向各含深浅主题版本）、清单、翻译，以及包含第三方许可说明的 README，不包含 Go 可执行文件、源码、开发依赖或 source map。
 
 当前未设置 Marketplace publisher，许可证保留为 `UNLICENSED`；本地打包使用 `--skip-license`。正式发布前仍需确定发布者与许可证。
 

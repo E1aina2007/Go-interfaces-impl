@@ -14,11 +14,11 @@ import {
 	inlineLimit,
 	openRelation,
 	relationArguments,
-	relationDirection,
-	relationSummary,
+	shownResult,
 	showRelations,
 	type ImplementationAnnotations,
 } from './annotations';
+import { relationDirection, relationSummary } from './labels';
 
 function appendLink(
 	hover: MarkdownString,
@@ -70,25 +70,50 @@ export class ImplementationGutter implements Disposable {
 		const implemented: DecorationOptions[] = [];
 		const implementations: DecorationOptions[] = [];
 		const state = this.annotations.get(editor.document);
+		// Keep current icons until retained results are attached to the reloaded document.
+		// 旧结果接续到重新读取的文档之前，保留当前图标以避免闪烁
+		if (
+			!state &&
+			this.annotations.retaining(editor.document) &&
+			annotationsEnabled(editor.document, 'gutterIcons')
+		) {
+			return;
+		}
 		if (state && annotationsEnabled(editor.document, 'gutterIcons')) {
 			for (const item of state.items) {
-				const result = item.result;
-				if (!result || result.matches.length === 0) {
+				const shown = shownResult(item);
+				if (!shown || shown.result.matches.length === 0) {
 					continue;
 				}
-				const args = relationArguments(state, item, result);
+				const result = shown.result;
 				const hover = new MarkdownString();
-				hover.isTrusted = { enabledCommands: [openRelation, showRelations] };
 				hover.appendText(`${relationDirection(result)} (${result.matches.length})`);
 				hover.appendMarkdown('\n\n');
+				// Stale hovers list names as plain text so outdated targets cannot be opened.
+				// 过期结果的悬停仅以纯文本列出名称，避免打开已经失效的目标
+				const args = shown.stale ? undefined : relationArguments(state, item, result);
+				if (args) {
+					hover.isTrusted = { enabledCommands: [openRelation, showRelations] };
+				}
 				for (const match of result.matches.slice(0, inlineLimit)) {
-					appendLink(hover, match.declaration.name, openRelation, [...args, match.id]);
+					if (args) {
+						appendLink(hover, match.declaration.name, openRelation, [
+							...args,
+							match.id,
+						]);
+					} else {
+						hover.appendText(match.declaration.name);
+					}
 					hover.appendText(
 						` · ${workspace.asRelativePath(match.location.uri)}${result.unverifiedTesting.has(match.id) ? ' · Test sources unverified' : ''}`,
 					);
 					hover.appendMarkdown('\n\n');
 				}
-				appendLink(hover, 'Show all results', showRelations, args);
+				if (args) {
+					appendLink(hover, 'Show all results', showRelations, args);
+				} else {
+					hover.appendText('Refreshing after a change…');
+				}
 				hover.appendMarkdown('\n\n');
 				hover.appendText(relationSummary(result));
 				const options = { range: item.range, hoverMessage: hover };

@@ -16,6 +16,7 @@ import {
 import type { TypeKind } from '../core/types';
 import { type ImplementationQueries, StaleQueryError, type QueryResult } from '../query/service';
 import type { LocatedType } from '../query/resolve';
+import { relationSummary } from './labels';
 
 export const findInterfaces = 'goInterfaces.findInterfaces';
 export const findStructs = 'goInterfaces.findStructs';
@@ -117,7 +118,7 @@ export class ImplementationCommands implements Disposable {
 			}
 			if (result.matches.length === 0) {
 				void window.showInformationMessage(
-					`The Go language service returned no displayable matches in this module (${result.hidden} filtered, ${result.skipped} unsupported). Its results may be incomplete.`,
+					`The Go language service returned no displayable matches in this module. ${relationSummary(result)}.`,
 				);
 				return;
 			}
@@ -134,7 +135,7 @@ export class ImplementationCommands implements Disposable {
 				items,
 				{
 					title: `${result.subject.declaration.name} → ${result.subject.declaration.kind === 'struct' ? 'interfaces' : 'structs'}`,
-					placeHolder: `Language-service results may be incomplete · ${result.hidden} filtered · ${result.skipped} unsupported · ${result.unverifiedTesting.size} test sources unverified`,
+					placeHolder: relationSummary(result),
 					matchOnDescription: true,
 					matchOnDetail: true,
 				},

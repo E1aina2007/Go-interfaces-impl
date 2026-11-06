@@ -31,6 +31,14 @@ export interface LocatedMethod {
 	readonly location: Location;
 }
 
+// A typed error lets callers degrade only candidates whose files are mid-edit.
+// 使用独立错误类型，便于调用方只对正在编辑的候选文件降级处理
+export class GoSyntaxError extends Error {
+	constructor(readonly uri: Uri) {
+		super(`Fix Go syntax errors in ${uri.fsPath} before querying.`);
+	}
+}
+
 export class TypeResolver {
 	private readonly resolved = new Map<string, LocatedType>();
 
@@ -79,7 +87,7 @@ export class TypeResolver {
 		}
 		const file = await this.read(location.uri);
 		if (file.syntax.hasErrors) {
-			throw new Error(`Fix Go syntax errors in ${location.uri.fsPath} before querying.`);
+			throw new GoSyntaxError(location.uri);
 		}
 		const offset = file.document.offsetAt(location.range.start);
 		const declaration = file.syntax.declarations.find(

@@ -3,20 +3,56 @@ import {
 	workspace,
 	type CancellationToken,
 	type CodeLensProvider,
+	type Range,
 	type TextDocument,
 } from 'vscode';
+import type { QueryResult } from '../query/service';
 import {
 	annotationsEnabled,
 	inlineLimit,
 	openRelation,
 	relationArguments,
-	relationDirection,
-	relationSummary,
 	retryRelation,
+	shownResult,
 	showRelations,
 	type ImplementationAnnotations,
 } from './annotations';
 import { findImplementations } from './commands';
+import { relationDirection, relationSummary } from './labels';
+
+const refreshingTooltip = 'Refreshing implementation relations after a change…';
+
+// Stale results keep their layout but drop commands, so outdated targets cannot be opened.
+// 过期结果保留原有布局但不绑定命令，避免打开已经失效的目标
+function relationLenses(
+	range: Range,
+	result: QueryResult,
+	args: readonly unknown[] | undefined,
+): CodeLens[] {
+	const summary = relationSummary(result);
+	// Keep the full-list action first so narrow editors do not hide it behind long type names.
+	// 将完整列表入口放在最前面，避免窄编辑器中的长类型名称遮住该入口
+	const lenses = [
+		new CodeLens(range, {
+			title: `${relationDirection(result)} (${result.matches.length})`,
+			tooltip: args ? summary : refreshingTooltip,
+			command: args ? showRelations : '',
+			arguments: args ? [...args] : [],
+		}),
+	];
+	for (const match of result.matches.slice(0, inlineLimit)) {
+		const location = `${workspace.asRelativePath(match.location.uri)}:${match.location.range.start.line + 1}`;
+		lenses.push(
+			new CodeLens(range, {
+				title: `${match.declaration.name}${result.unverifiedTesting.has(match.id) ? ' ?' : ''}`,
+				tooltip: args ? `${location}\n${summary}` : `${location}\n${refreshingTooltip}`,
+				command: args ? openRelation : '',
+				arguments: args ? [...args, match.id] : [],
+			}),
+		);
+	}
+	return lenses;
+}
 
 export class ImplementationLenses implements CodeLensProvider {
 	readonly onDidChangeCodeLenses;
@@ -35,46 +71,40 @@ export class ImplementationLenses implements CodeLensProvider {
 		}
 		const lenses: CodeLens[] = [];
 		for (const item of state.items) {
-			const result = item.result;
-			if (!result) {
+			if (item.error) {
 				lenses.push(
 					new CodeLens(item.range, {
-						title: item.error
-							? 'Unable to load relations · Retry'
-							: 'Finding implementation relations…',
-						tooltip: item.error ?? 'Automatically query the visible type declarations.',
-						command: item.error ? retryRelation : findImplementations,
-						arguments: item.error
-							? [document.uri.toString(), state.version, item.start]
-							: [document.uri, item.range.start, state.version],
+						title: 'Unable to load relations · Retry',
+						tooltip: item.error,
+						command: retryRelation,
+						arguments: [document.uri.toString(), state.version, item.start],
 					}),
 				);
 				continue;
 			}
-			const args = relationArguments(state, item, result);
-			if (result.matches.length === 0) {
+			const shown = shownResult(item);
+			if (shown) {
+				if (shown.result.matches.length > 0) {
+					const args = shown.stale
+						? undefined
+						: relationArguments(state, item, shown.result);
+					lenses.push(...relationLenses(item.range, shown.result, args));
+				}
 				continue;
 			}
-			// Keep the full-list action first so narrow editors do not hide it behind long type names.
-			// 将完整列表入口放在最前面，避免窄编辑器中的长类型名称遮住该入口
+			// A file with syntax errors only keeps earlier results; it never starts new queries.
+			// 存在语法错误的文件只保留先前结果，不发起新的查询
+			if (state.blocked) {
+				continue;
+			}
 			lenses.push(
 				new CodeLens(item.range, {
-					title: `${relationDirection(result)} (${result.matches.length})`,
-					tooltip: relationSummary(result),
-					command: showRelations,
-					arguments: args,
+					title: 'Finding implementation relations…',
+					tooltip: 'Automatically query the visible type declarations.',
+					command: findImplementations,
+					arguments: [document.uri, item.range.start, state.version],
 				}),
 			);
-			for (const match of result.matches.slice(0, inlineLimit)) {
-				lenses.push(
-					new CodeLens(item.range, {
-						title: `${match.declaration.name}${result.unverifiedTesting.has(match.id) ? ' ?' : ''}`,
-						tooltip: `${workspace.asRelativePath(match.location.uri)}:${match.location.range.start.line + 1}\n${relationSummary(result)}`,
-						command: openRelation,
-						arguments: [...args, match.id],
-					}),
-				);
-			}
 		}
 		return lenses;
 	}

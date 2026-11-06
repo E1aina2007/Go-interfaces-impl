@@ -13,6 +13,7 @@ import {
 import type { GoSyntax } from '../core/syntax';
 import { StaleQueryError, type ImplementationQueries, type QueryResult } from '../query/service';
 import { findModule } from '../workspace/module';
+import { relationDirection, relationSummary } from './labels';
 
 export const openRelation = 'goInterfaces.openRelation';
 export const showRelations = 'goInterfaces.showRelations';
@@ -21,22 +22,46 @@ export const inlineLimit = 6;
 const refreshDelay = 400;
 
 export interface Annotation {
+	// Declaration name plus its occurrence, stable across edits that only move offsets.
+	// 声明名称加出现序号，在仅移动偏移的编辑前后保持稳定
+	readonly key: string;
 	readonly start: number;
 	readonly range: Range;
 	result?: QueryResult;
 	error?: string;
+	// Display-only result from before the latest change; never used for navigation.
+	// 最近一次变化前的结果，仅用于展示，不用于导航
+	previous?: QueryResult | undefined;
 }
 
 export interface DocumentAnnotations {
 	readonly document: TextDocument;
 	readonly version: number;
 	readonly items: readonly Annotation[];
+	// Syntax errors block new queries; previous results stay visible until the file parses again.
+	// 语法错误时不发起新查询，旧结果保持展示直到文件重新可解析
+	readonly blocked: boolean;
+}
+
+export interface ShownResult {
+	readonly result: QueryResult;
+	readonly stale: boolean;
 }
 
 interface PendingAnnotation {
 	readonly state: DocumentAnnotations;
 	readonly item: Annotation;
 	readonly request: CancellationTokenSource;
+}
+
+export function shownResult(item: Annotation): ShownResult | undefined {
+	if (item.result) {
+		return { result: item.result, stale: false };
+	}
+	if (item.previous && !item.error) {
+		return { result: item.previous, stale: true };
+	}
+	return undefined;
 }
 
 export function annotationsEnabled(
@@ -55,14 +80,6 @@ export function annotationsEnabled(
 	);
 }
 
-export function relationDirection(result: QueryResult): string {
-	return result.subject.declaration.kind === 'struct' ? 'Implements' : 'Implemented by';
-}
-
-export function relationSummary(result: QueryResult): string {
-	return `Language-service results may be incomplete · ${result.hidden} filtered · ${result.skipped} unsupported · ${result.unverifiedTesting.size} test sources unverified`;
-}
-
 export function relationArguments(
 	state: DocumentAnnotations,
 	item: Annotation,
@@ -75,6 +92,9 @@ export class ImplementationAnnotations implements Disposable {
 	private readonly changed = new EventEmitter<void>();
 	private readonly subscriptions: Disposable[];
 	private readonly documents = new Map<string, DocumentAnnotations>();
+	// Results kept per document URI and declaration key while the next query runs.
+	// 按文档 URI 和声明键保存的结果，在下一次查询完成前继续展示
+	private readonly previous = new Map<string, Map<string, QueryResult>>();
 	private timer: ReturnType<typeof setTimeout> | undefined;
 	private active: PendingAnnotation | undefined;
 	private running = false;
@@ -92,6 +112,7 @@ export class ImplementationAnnotations implements Disposable {
 			queries.onDidInvalidate(() => {
 				this.revision++;
 				this.active?.request.cancel();
+				this.retain();
 				this.documents.clear();
 				this.changed.fire();
 				this.schedule();
@@ -104,6 +125,15 @@ export class ImplementationAnnotations implements Disposable {
 						)
 					) {
 						this.documents.delete(key);
+					}
+				}
+				for (const key of this.previous.keys()) {
+					if (
+						!window.visibleTextEditors.some(
+							(editor) => editor.document.uri.toString() === key,
+						)
+					) {
+						this.previous.delete(key);
 					}
 				}
 				this.visibleChanged();
@@ -158,12 +188,19 @@ export class ImplementationAnnotations implements Disposable {
 			: undefined;
 	}
 
+	// True while retained results wait for the document to be read again after a change.
+	// 变化后文档尚未重新读取、旧结果仍在等待接续时返回 true
+	retaining(document: TextDocument): boolean {
+		return this.previous.has(document.uri.toString());
+	}
+
 	async load(document: TextDocument): Promise<DocumentAnnotations | undefined> {
 		if (
 			this.disposed ||
 			(!annotationsEnabled(document, 'codeLens') &&
 				!annotationsEnabled(document, 'gutterIcons'))
 		) {
+			this.drop(document);
 			return undefined;
 		}
 		const previous = this.get(document);
@@ -174,6 +211,7 @@ export class ImplementationAnnotations implements Disposable {
 		const revision = this.revision;
 		try {
 			if (!(await findModule(document.uri.toString()))) {
+				this.drop(document);
 				return undefined;
 			}
 			const file = await this.syntax.read(document.getText());
@@ -181,11 +219,13 @@ export class ImplementationAnnotations implements Disposable {
 				this.disposed ||
 				document.isClosed ||
 				document.version !== version ||
-				revision !== this.revision ||
-				file.hasErrors
+				revision !== this.revision
 			) {
 				return undefined;
 			}
+			const uri = document.uri.toString();
+			const retained = this.previous.get(uri);
+			const occurrences = new Map<string, number>();
 			const items: Annotation[] = [];
 			for (const declaration of file.declarations) {
 				if (declaration.generic || declaration.kind === 'unsupported') {
@@ -197,12 +237,17 @@ export class ImplementationAnnotations implements Disposable {
 				) {
 					continue;
 				}
+				const occurrence = occurrences.get(declaration.name) ?? 0;
+				occurrences.set(declaration.name, occurrence + 1);
+				const key = `${declaration.name}#${occurrence}`;
 				items.push({
+					key,
 					start: declaration.start,
 					range: new Range(
 						document.positionAt(declaration.start),
 						document.positionAt(declaration.end),
 					),
+					previous: retained?.get(key),
 				});
 			}
 			// Concurrent CodeLens and editor callbacks must share the same result storage.
@@ -211,15 +256,28 @@ export class ImplementationAnnotations implements Disposable {
 			if (existing) {
 				return existing;
 			}
-			const state = { document, version, items };
-			this.documents.set(document.uri.toString(), state);
+			const state = { document, version, items, blocked: file.hasErrors };
+			this.documents.set(uri, state);
+			this.previous.delete(uri);
+			if (retained) {
+				this.changed.fire();
+			}
 			this.schedule();
 			return state;
 		} catch (error) {
 			if (!this.disposed) {
 				this.output.error('Unable to read Go declarations for editor annotations', error);
+				this.drop(document);
 			}
 			return undefined;
+		}
+	}
+
+	// Discard retained results that can no longer be attached, so old icons do not linger.
+	// 丢弃无法再接续的旧结果，避免旧图标一直残留
+	private drop(document: TextDocument): void {
+		if (this.previous.delete(document.uri.toString()) && !this.disposed) {
+			this.changed.fire();
 		}
 	}
 
@@ -228,6 +286,21 @@ export class ImplementationAnnotations implements Disposable {
 			this.active.request.cancel();
 		}
 		this.schedule();
+	}
+
+	// Carry displayed results across invalidation so names and icons do not flicker while typing.
+	// 失效时保留已展示的结果，避免输入过程中名称和图标反复闪烁
+	private retain(): void {
+		for (const [uri, state] of this.documents) {
+			const results = new Map<string, QueryResult>();
+			for (const item of state.items) {
+				const shown = shownResult(item);
+				if (shown) {
+					results.set(item.key, shown.result);
+				}
+			}
+			this.previous.set(uri, results);
+		}
 	}
 
 	private schedule(): void {
@@ -271,7 +344,13 @@ export class ImplementationAnnotations implements Disposable {
 			// 合并编辑器事件并串行查询可见声明，不预先扫描整个模块
 			for (const state of this.documents.values()) {
 				for (const item of state.items) {
-					if (this.disposed || item.result || item.error || !this.visible(state, item)) {
+					if (
+						this.disposed ||
+						state.blocked ||
+						item.result ||
+						item.error ||
+						!this.visible(state, item)
+					) {
 						continue;
 					}
 					const request = new CancellationTokenSource();
@@ -290,6 +369,7 @@ export class ImplementationAnnotations implements Disposable {
 							this.queries.isCurrent(result)
 						) {
 							item.result = result;
+							delete item.previous;
 						}
 					} catch (error) {
 						if (
@@ -301,6 +381,7 @@ export class ImplementationAnnotations implements Disposable {
 							return;
 						}
 						item.error = error instanceof Error ? error.message : String(error);
+						delete item.previous;
 						this.output.error(
 							'Unable to query Go editor implementation annotations',
 							error,
@@ -423,6 +504,7 @@ export class ImplementationAnnotations implements Disposable {
 			subscription.dispose();
 		}
 		this.documents.clear();
+		this.previous.clear();
 		this.changed.dispose();
 	}
 }

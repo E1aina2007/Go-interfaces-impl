@@ -1,6 +1,12 @@
 import { CancellationError, Location, type CancellationToken, type Uri } from 'vscode';
 import type { GoProvider } from '../language/provider';
-import type { CapturedFile, LocatedMethod, LocatedType, TypeResolver } from './resolve';
+import {
+	GoSyntaxError,
+	type CapturedFile,
+	type LocatedMethod,
+	type LocatedType,
+	type TypeResolver,
+} from './resolve';
 import { InterfaceMethods } from './interfaces';
 
 const methodQueryLimit = 32;
@@ -95,6 +101,17 @@ export class TestingFilter {
 		}
 	}
 
+	private async receiver(location: Location): Promise<LocatedType | undefined> {
+		try {
+			return await this.resolver.resolveReference(location);
+		} catch (error) {
+			if (error instanceof GoSyntaxError) {
+				return undefined;
+			}
+			throw error;
+		}
+	}
+
 	private async origins(method: LocatedMethod): Promise<MethodOrigins | undefined> {
 		this.check();
 		const { uri, range } = method.location;
@@ -127,8 +144,11 @@ export class TestingFilter {
 			}
 			this.inspected++;
 			const file = await this.read(location.uri);
+			// A method file being edited cannot classify its origin; keep the relation and mark it unverified.
+			// 正在编辑的方法文件无法确认来源，保留关系并标记为来源未确认
 			if (file.syntax.hasErrors) {
-				throw new Error(`Fix Go syntax errors in ${location.uri.fsPath} before querying.`);
+				classified = false;
+				continue;
 			}
 			const offset = file.document.offsetAt(location.range.start);
 			const matches = (item: { start: number; end: number }): boolean =>
@@ -149,7 +169,7 @@ export class TestingFilter {
 				classified = false;
 				continue;
 			}
-			const owner = await this.resolver.resolveReference(
+			const owner = await this.receiver(
 				new Location(location.uri, file.document.positionAt(declaration.receiver)),
 			);
 			if (!owner || owner.declaration.kind !== 'struct' || owner.declaration.generic) {

@@ -1,5 +1,5 @@
-import { CancellationError, type CancellationToken } from 'vscode';
-import type { LocatedMethod, LocatedType, TypeResolver } from './resolve';
+import { CancellationError, type CancellationToken, type Location } from 'vscode';
+import { GoSyntaxError, type LocatedMethod, type LocatedType, type TypeResolver } from './resolve';
 
 const referenceLimit = 64;
 const depthLimit = 32;
@@ -64,7 +64,7 @@ export class InterfaceMethods {
 				continue;
 			}
 			this.requested++;
-			const target = await this.types.resolveReference(reference);
+			const target = await this.target(reference);
 			if (!target) {
 				unresolved = true;
 				continue;
@@ -84,5 +84,18 @@ export class InterfaceMethods {
 			this.resolved.set(type.id, result);
 		}
 		return result;
+	}
+
+	private async target(reference: Location): Promise<LocatedType | undefined> {
+		try {
+			return await this.types.resolveReference(reference);
+		} catch (error) {
+			// An embedded interface in a file being edited stays an unknown requirement.
+			// 正在编辑的文件中的嵌入接口保留为未知要求
+			if (error instanceof GoSyntaxError) {
+				return undefined;
+			}
+			throw error;
+		}
 	}
 }

@@ -15,7 +15,7 @@ import type { GoSyntax } from '../core/syntax';
 import type { TypeKind } from '../core/types';
 import { GoProvider } from '../language/provider';
 import { belongsToModule, findModule, type GoModule } from '../workspace/module';
-import { TypeResolver, type CapturedFile, type LocatedType } from './resolve';
+import { GoSyntaxError, TypeResolver, type CapturedFile, type LocatedType } from './resolve';
 import { TestingFilter } from './filter';
 
 export interface QueryResult {
@@ -26,6 +26,7 @@ export interface QueryResult {
 	readonly hidden: number;
 	readonly unverifiedTesting: ReadonlySet<string>;
 	readonly skipped: number;
+	readonly unreadable: number;
 	readonly hideTesting: boolean;
 	readonly generation: number;
 }
@@ -41,6 +42,9 @@ export class ImplementationQueries implements Disposable {
 	private readonly invalidated = new EventEmitter<void>();
 	private readonly subscriptions: Disposable[];
 	private readonly pending = new Set<CancellationTokenSource>();
+	// Documents whose symbols the Go extension already served in this generation.
+	// 当前 generation 内 Go 扩展已经成功返回符号的文档
+	private readonly prepared = new Set<string>();
 	private generation = 0;
 	private disposed = false;
 	readonly onDidInvalidate = this.invalidated.event;
@@ -60,6 +64,7 @@ export class ImplementationQueries implements Disposable {
 		};
 		const invalidate = (): void => {
 			this.generation++;
+			this.prepared.clear();
 			// Stop waiting for stale providers; the generation check still reports why the query ended.
 			// 停止等待已过期的语言服务请求，仍通过 generation 检查说明查询结束原因
 			for (const request of this.pending) {
@@ -194,7 +199,13 @@ export class ImplementationQueries implements Disposable {
 			if (!module) {
 				throw new Error('No go.mod was found for the selected file.');
 			}
-			await this.provider.prepare(uri, token);
+			// Editor annotations query many declarations per file; check readiness once per generation.
+			// 编辑器展示会对同一文件的多个声明查询，每个 generation 只确认一次语言服务就绪
+			if (!this.prepared.has(uri.toString())) {
+				await this.provider.prepare(uri, token);
+				check();
+				this.prepared.add(uri.toString());
+			}
 			check();
 			const subject = await resolver.resolveReference(new Location(uri, position));
 			if (!subject) {
@@ -223,6 +234,7 @@ export class ImplementationQueries implements Disposable {
 			const matches = new Map<string, LocatedType>();
 			const seen = new Set<string>();
 			let skipped = 0;
+			let unreadable = 0;
 			const moduleResults = new Map<string, Promise<boolean>>();
 			const belongs = (uri: string): Promise<boolean> => {
 				let result = moduleResults.get(uri);
@@ -242,10 +254,21 @@ export class ImplementationQueries implements Disposable {
 				if (!(await belongs(key))) {
 					continue;
 				}
-				const match = await resolver.resolve(location);
+				const match = await this.candidate(resolver, location);
+				if (match === 'unreadable') {
+					unreadable++;
+					continue;
+				}
+				if (!match) {
+					skipped++;
+					continue;
+				}
+				// Interface-to-interface results are outside this relation scope, not unsupported failures.
+				// 接口之间的结果不属于本插件的关系范围，也不是不支持导致的失败
+				if (match.declaration.kind === subject.declaration.kind) {
+					continue;
+				}
 				if (
-					!match ||
-					match.declaration.kind === subject.declaration.kind ||
 					match.declaration.generic ||
 					match.declaration.constraint ||
 					match.declaration.empty
@@ -287,6 +310,7 @@ export class ImplementationQueries implements Disposable {
 				hidden: filtered.hidden,
 				unverifiedTesting: filtered.unverified,
 				skipped,
+				unreadable,
 				hideTesting,
 				generation,
 			};
@@ -297,6 +321,22 @@ export class ImplementationQueries implements Disposable {
 			cancel.dispose();
 			request.dispose();
 			this.pending.delete(request);
+		}
+	}
+
+	private async candidate(
+		resolver: TypeResolver,
+		location: Location,
+	): Promise<LocatedType | 'unreadable' | undefined> {
+		try {
+			return await resolver.resolve(location);
+		} catch (error) {
+			// A candidate file being edited must not fail the whole query; it is counted separately.
+			// 正在编辑的候选文件不应使整个查询失败，单独计数并在摘要中显示
+			if (error instanceof GoSyntaxError) {
+				return 'unreadable';
+			}
+			throw error;
 		}
 	}
 
