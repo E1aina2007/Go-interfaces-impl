@@ -6,4 +6,10 @@ dist/
 .DS_Store
 Thumbs.db
 
+# Acceptance examples must not be initialized as Go projects.
+examples/**/go.mod
+examples/**/go.sum
+examples/**/go.work
+examples/**/go.work.sum
+
 docs/

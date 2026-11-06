@@ -14,7 +14,8 @@
 
 ## 实现语言与工具边界
 
-- 插件源码仅使用 JavaScript 或 TypeScript，不新增 Go 源码、Go module 或 Go 分析子进程
+- 插件源码仅使用 JavaScript 或 TypeScript，不新增 Go 分析子进程，插件运行和打包不依赖任何 Go 源码
+- 允许在 `examples/` 下添加用于人工验收的 Go 示例代码，但不在其中初始化 Go 项目：不添加 `go.mod`、`go.sum`、`go.work`，不执行 `go mod init` 等命令；示例代码不进入 VSIX
 - 开发、检查与打包流程不调用 `go build`、`go vet` 或其他 Go 工具命令
 - 通过 VS Code 公开语言接口复用官方 Go 扩展，不访问其内部 language client，不自行管理 gopls 进程
 - 已安装的 Go 扩展仍负责其自身的 Go SDK 与语言服务；在 README 中明确这项运行依赖及公共接口的能力边界
