@@ -7,6 +7,7 @@ import {
 	ThemeIcon,
 	Uri,
 	commands,
+	l10n,
 	window,
 	workspace,
 	type Disposable,
@@ -16,7 +17,7 @@ import {
 import type { TypeKind } from '../core/types';
 import { type ImplementationQueries, StaleQueryError, type QueryResult } from '../query/service';
 import type { LocatedType } from '../query/resolve';
-import { relationSummary } from './labels';
+import { errorMessage, relationDirection, relationSummary, unverifiedNote } from './labels';
 
 export const findInterfaces = 'goInterfaces.findInterfaces';
 export const findStructs = 'goInterfaces.findStructs';
@@ -71,7 +72,9 @@ export class ImplementationCommands implements Disposable {
 				? editor?.selection.active
 				: undefined);
 		if (!(resource instanceof Uri) || !(cursor instanceof Position)) {
-			void window.showInformationMessage('Open a Go document and select a type name.');
+			void window.showInformationMessage(
+				l10n.t('Open a Go document and select a type name.'),
+			);
 			return;
 		}
 		this.active?.cancel();
@@ -82,11 +85,11 @@ export class ImplementationCommands implements Disposable {
 			workspace.textDocuments.find(
 				(document) => document.uri.toString() === resource.toString(),
 			)?.version;
-		let title = 'Go Interfaces: Finding implementation relations';
+		let title = l10n.t('Go Interfaces: Finding implementation relations');
 		if (kind === 'struct') {
-			title = 'Go Interfaces: Finding implemented interfaces';
+			title = l10n.t('Go Interfaces: Finding implemented interfaces');
 		} else if (kind === 'interface') {
-			title = 'Go Interfaces: Finding implementing structs';
+			title = l10n.t('Go Interfaces: Finding implementing structs');
 		}
 		try {
 			const result = await window.withProgress(
@@ -118,7 +121,10 @@ export class ImplementationCommands implements Disposable {
 			}
 			if (result.matches.length === 0) {
 				void window.showInformationMessage(
-					`The Go language service returned no displayable matches in this module. ${relationSummary(result)}.`,
+					l10n.t(
+						'The Go language service returned no displayable matches in this module. {0}.',
+						relationSummary(result),
+					),
 				);
 				return;
 			}
@@ -128,13 +134,13 @@ export class ImplementationCommands implements Disposable {
 					match.declaration.kind === 'struct' ? 'symbol-struct' : 'symbol-interface',
 				),
 				description: workspace.asRelativePath(match.location.uri),
-				detail: `${match.location.uri.fsPath}:${match.location.range.start.line + 1}${result.unverifiedTesting.has(match.id) ? ' · Test method sources not fully verified' : ''}`,
+				detail: `${match.location.uri.fsPath}:${match.location.range.start.line + 1}${unverifiedNote(result, match.id)}`,
 				match,
 			}));
 			const selected = await window.showQuickPick(
 				items,
 				{
-					title: `${result.subject.declaration.name} → ${result.subject.declaration.kind === 'struct' ? 'interfaces' : 'structs'}`,
+					title: `${result.subject.declaration.name} · ${relationDirection(result)}`,
 					placeHolder: relationSummary(result),
 					matchOnDescription: true,
 					matchOnDetail: true,
@@ -164,9 +170,7 @@ export class ImplementationCommands implements Disposable {
 				return;
 			}
 			this.output.error('Implementation query failed', error);
-			void window.showErrorMessage(
-				`Go Interfaces: ${error instanceof Error ? error.message : String(error)}`,
-			);
+			void window.showErrorMessage(errorMessage(error));
 		} finally {
 			if (this.active === request) {
 				this.active = undefined;
@@ -179,7 +183,7 @@ export class ImplementationCommands implements Disposable {
 		const uri = window.activeTextEditor?.document.uri;
 		if (!uri || !workspace.getWorkspaceFolder(uri)) {
 			void window.showInformationMessage(
-				'Open a Go file in a workspace to change its test filter.',
+				l10n.t('Open a Go file in a workspace to change its test filter.'),
 			);
 			return;
 		}
@@ -193,12 +197,14 @@ export class ImplementationCommands implements Disposable {
 			);
 			this.active?.cancel();
 			void window.showInformationMessage(
-				`Go Interfaces: Test source filter ${enabled ? 'disabled' : 'enabled'}.`,
+				enabled
+					? l10n.t('Go Interfaces: Test source filter disabled.')
+					: l10n.t('Go Interfaces: Test source filter enabled.'),
 			);
 		} catch (error) {
 			this.output.error('Unable to update the test filter', error);
 			void window.showErrorMessage(
-				`Go Interfaces: Unable to change the test filter: ${String(error)}`,
+				l10n.t('Go Interfaces: Unable to change the test filter: {0}', String(error)),
 			);
 		}
 	}

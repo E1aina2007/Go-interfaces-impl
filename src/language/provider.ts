@@ -3,6 +3,7 @@ import {
 	Location,
 	commands,
 	extensions,
+	l10n,
 	type CancellationToken,
 	type Disposable,
 	type DocumentSymbol,
@@ -24,7 +25,9 @@ async function wait<T>(start: () => Thenable<T>, token: CancellationToken): Prom
 			() =>
 				reject(
 					new Error(
-						'The Go language service timed out. Try again after it finishes loading.',
+						l10n.t(
+							'The Go language service timed out. Try again after it finishes loading.',
+						),
 					),
 				),
 			60_000,
@@ -42,7 +45,7 @@ async function wait<T>(start: () => Thenable<T>, token: CancellationToken): Prom
 
 function locations(items: readonly (Location | LocationLink)[] | undefined): readonly Location[] {
 	if (!items) {
-		throw new Error('The Go language service is not ready.');
+		throw new Error(l10n.t('The Go language service is not ready.'));
 	}
 	const unique = new Map<string, Location>();
 	for (const item of items) {
@@ -60,7 +63,7 @@ export class GoProvider {
 	async prepare(uri: Uri, token: CancellationToken): Promise<void> {
 		const go = extensions.getExtension<unknown>('golang.go');
 		if (!go) {
-			throw new Error('Install and configure the official Go extension (golang.go).');
+			throw new Error(l10n.t('Install and configure the official Go extension (golang.go).'));
 		}
 		await wait(() => go.activate(), token);
 		const symbols = await wait(
@@ -73,7 +76,9 @@ export class GoProvider {
 		);
 		if (!symbols || symbols.length === 0) {
 			throw new Error(
-				'The Go language service returned no document symbols. Wait for gopls to finish loading and retry.',
+				l10n.t(
+					'The Go language service returned no document symbols. Wait for gopls to finish loading and retry.',
+				),
 			);
 		}
 	}

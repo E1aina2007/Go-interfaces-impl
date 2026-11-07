@@ -1,5 +1,6 @@
 import {
 	CodeLens,
+	l10n,
 	workspace,
 	type CancellationToken,
 	type CodeLensProvider,
@@ -20,8 +21,6 @@ import {
 import { findImplementations } from './commands';
 import { relationDirection, relationSummary } from './labels';
 
-const refreshingTooltip = 'Refreshing implementation relations after a change…';
-
 // Stale results keep their layout but drop commands, so outdated targets cannot be opened.
 // 过期结果保留原有布局但不绑定命令，避免打开已经失效的目标
 function relationLenses(
@@ -30,12 +29,13 @@ function relationLenses(
 	args: readonly unknown[] | undefined,
 ): CodeLens[] {
 	const summary = relationSummary(result);
+	const refreshing = l10n.t('Refreshing implementation relations after a change…');
 	// Keep the full-list action first so narrow editors do not hide it behind long type names.
 	// 将完整列表入口放在最前面，避免窄编辑器中的长类型名称遮住该入口
 	const lenses = [
 		new CodeLens(range, {
 			title: `${relationDirection(result)} (${result.matches.length})`,
-			tooltip: args ? summary : refreshingTooltip,
+			tooltip: args ? summary : refreshing,
 			command: args ? showRelations : '',
 			arguments: args ? [...args] : [],
 		}),
@@ -45,7 +45,7 @@ function relationLenses(
 		lenses.push(
 			new CodeLens(range, {
 				title: `${match.declaration.name}${result.unverifiedTesting.has(match.id) ? ' ?' : ''}`,
-				tooltip: args ? `${location}\n${summary}` : `${location}\n${refreshingTooltip}`,
+				tooltip: `${location}\n${args ? summary : refreshing}`,
 				command: args ? openRelation : '',
 				arguments: args ? [...args, match.id] : [],
 			}),
@@ -74,7 +74,7 @@ export class ImplementationLenses implements CodeLensProvider {
 			if (item.error) {
 				lenses.push(
 					new CodeLens(item.range, {
-						title: 'Unable to load relations · Retry',
+						title: l10n.t('Unable to load relations · Retry'),
 						tooltip: item.error,
 						command: retryRelation,
 						arguments: [document.uri.toString(), state.version, item.start],
@@ -99,8 +99,8 @@ export class ImplementationLenses implements CodeLensProvider {
 			}
 			lenses.push(
 				new CodeLens(item.range, {
-					title: 'Finding implementation relations…',
-					tooltip: 'Automatically query the visible type declarations.',
+					title: l10n.t('Finding implementation relations…'),
+					tooltip: l10n.t('Automatically query the visible type declarations.'),
 					command: findImplementations,
 					arguments: [document.uri, item.range.start, state.version],
 				}),

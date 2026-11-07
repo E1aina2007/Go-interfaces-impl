@@ -4,6 +4,7 @@ import {
 	CancellationTokenSource,
 	EventEmitter,
 	Location,
+	l10n,
 	workspace,
 	type CancellationToken,
 	type Disposable,
@@ -33,7 +34,7 @@ export interface QueryResult {
 
 export class StaleQueryError extends Error {
 	constructor() {
-		super('Go sources or settings changed. Run the query again.');
+		super(l10n.t('Go sources or settings changed. Run the query again.'));
 	}
 }
 
@@ -171,10 +172,10 @@ export class ImplementationQueries implements Disposable {
 		try {
 			check();
 			if (!workspace.isTrusted) {
-				throw new Error('Go implementation queries require a trusted workspace.');
+				throw new Error(l10n.t('Go implementation queries require a trusted workspace.'));
 			}
 			if (uri.scheme !== 'file' || !workspace.getWorkspaceFolder(uri)) {
-				throw new Error('Select a Go file inside an open filesystem workspace.');
+				throw new Error(l10n.t('Select a Go file inside an open filesystem workspace.'));
 			}
 			if (
 				workspace.textDocuments.some(
@@ -184,7 +185,7 @@ export class ImplementationQueries implements Disposable {
 				)
 			) {
 				throw new Error(
-					'Save Go module and workspace configuration files before querying.',
+					l10n.t('Save Go module and workspace configuration files before querying.'),
 				);
 			}
 			const source = await read(uri);
@@ -192,12 +193,12 @@ export class ImplementationQueries implements Disposable {
 				throw new StaleQueryError();
 			}
 			if (source.document.languageId !== 'go') {
-				throw new Error('Select a Go source document.');
+				throw new Error(l10n.t('Select a Go source document.'));
 			}
 			position = source.document.getWordRangeAtPosition(position)?.start ?? position;
 			const module = await findModule(uri.toString());
 			if (!module) {
-				throw new Error('No go.mod was found for the selected file.');
+				throw new Error(l10n.t('No go.mod was found for the selected file.'));
 			}
 			// Editor annotations query many declarations per file; check readiness once per generation.
 			// 编辑器展示会对同一文件的多个声明查询，每个 generation 只确认一次语言服务就绪
@@ -210,11 +211,17 @@ export class ImplementationQueries implements Disposable {
 			const subject = await resolver.resolveReference(new Location(uri, position));
 			if (!subject) {
 				throw new Error(
-					'Select a named struct or interface. Its type reference must resolve unambiguously within 32 declarations; pointers and generic instances are not supported.',
+					l10n.t(
+						'Select a named struct or interface. Its type reference must resolve unambiguously within 32 declarations; pointers and generic instances are not supported.',
+					),
 				);
 			}
 			if (expected !== 'auto' && subject.declaration.kind !== expected) {
-				throw new Error(`This command requires a ${expected} type.`);
+				throw new Error(
+					expected === 'struct'
+						? l10n.t('This command requires a struct type.')
+						: l10n.t('This command requires an interface type.'),
+				);
 			}
 			if (
 				subject.declaration.generic ||
@@ -222,7 +229,9 @@ export class ImplementationQueries implements Disposable {
 				subject.declaration.empty
 			) {
 				throw new Error(
-					'Generic declarations, constraint interfaces and empty interfaces are not supported by this query path.',
+					l10n.t(
+						'Generic declarations, constraint interfaces and empty interfaces are not supported by this query path.',
+					),
 				);
 			}
 			// Query from the original reference so the Go extension retains the caller's build context.

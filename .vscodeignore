@@ -6,3 +6,4 @@
 !dist/extension.js
 !dist/wasm/*.wasm
 !media/*.svg
+!l10n/*.json

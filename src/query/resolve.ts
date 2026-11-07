@@ -2,6 +2,7 @@ import {
 	CancellationError,
 	Location,
 	Range,
+	l10n,
 	type CancellationToken,
 	type TextDocument,
 	type Uri,
@@ -35,7 +36,7 @@ export interface LocatedMethod {
 // 使用独立错误类型，便于调用方只对正在编辑的候选文件降级处理
 export class GoSyntaxError extends Error {
 	constructor(readonly uri: Uri) {
-		super(`Fix Go syntax errors in ${uri.fsPath} before querying.`);
+		super(l10n.t('Fix Go syntax errors in {0} before querying.', uri.fsPath));
 	}
 }
 

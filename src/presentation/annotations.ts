@@ -13,7 +13,7 @@ import {
 import type { GoSyntax } from '../core/syntax';
 import { StaleQueryError, type ImplementationQueries, type QueryResult } from '../query/service';
 import { findModule } from '../workspace/module';
-import { relationDirection, relationSummary } from './labels';
+import { errorMessage, relationDirection, relationSummary, unverifiedNote } from './labels';
 
 export const openRelation = 'goInterfaces.openRelation';
 export const showRelations = 'goInterfaces.showRelations';
@@ -464,7 +464,7 @@ export class ImplementationAnnotations implements Disposable {
 				result.matches.map((match) => ({
 					label: match.declaration.name,
 					description: workspace.asRelativePath(match.location.uri),
-					detail: `${match.location.uri.fsPath}:${match.location.range.start.line + 1}${result.unverifiedTesting.has(match.id) ? ' · Test sources unverified' : ''}`,
+					detail: `${match.location.uri.fsPath}:${match.location.range.start.line + 1}${unverifiedNote(result, match.id)}`,
 					match,
 				})),
 				{
@@ -491,9 +491,7 @@ export class ImplementationAnnotations implements Disposable {
 			return;
 		}
 		this.output.error('Unable to navigate Go implementation annotations', error);
-		void window.showErrorMessage(
-			`Go Interfaces: ${error instanceof Error ? error.message : String(error)}`,
-		);
+		void window.showErrorMessage(errorMessage(error));
 	}
 
 	dispose(): void {

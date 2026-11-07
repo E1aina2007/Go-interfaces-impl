@@ -2,7 +2,7 @@
   "name": "go-interfaces-impl",
   "displayName": "Go Interfaces",
   "description": "%extension.description%",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "private": true,
   "license": "UNLICENSED",
   "repository": {
@@ -43,6 +43,7 @@
     "onLanguage:go"
   ],
   "main": "./dist/extension.js",
+  "l10n": "./l10n",
   "contributes": {
     "configuration": {
       "title": "Go Interfaces",

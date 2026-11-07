@@ -2,6 +2,7 @@ import {
 	DecorationRangeBehavior,
 	MarkdownString,
 	Uri,
+	l10n,
 	window,
 	workspace,
 	type DecorationOptions,
@@ -18,7 +19,7 @@ import {
 	showRelations,
 	type ImplementationAnnotations,
 } from './annotations';
-import { relationDirection, relationSummary } from './labels';
+import { relationDirection, relationSummary, unverifiedNote } from './labels';
 
 function appendLink(
 	hover: MarkdownString,
@@ -105,14 +106,14 @@ export class ImplementationGutter implements Disposable {
 						hover.appendText(match.declaration.name);
 					}
 					hover.appendText(
-						` · ${workspace.asRelativePath(match.location.uri)}${result.unverifiedTesting.has(match.id) ? ' · Test sources unverified' : ''}`,
+						` · ${workspace.asRelativePath(match.location.uri)}${unverifiedNote(result, match.id)}`,
 					);
 					hover.appendMarkdown('\n\n');
 				}
 				if (args) {
-					appendLink(hover, 'Show all results', showRelations, args);
+					appendLink(hover, l10n.t('Show all results'), showRelations, args);
 				} else {
-					hover.appendText('Refreshing after a change…');
+					hover.appendText(l10n.t('Refreshing after a change…'));
 				}
 				hover.appendMarkdown('\n\n');
 				hover.appendText(relationSummary(result));

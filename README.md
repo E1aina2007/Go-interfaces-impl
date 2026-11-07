@@ -17,6 +17,7 @@
 - 将语言服务返回的位置限定到当前文件所属的 module，排除嵌套 module、vendor 和依赖目录；使用原生列表选择并跳转
 - 支持按类型声明和已报告的直接方法位置过滤测试来源，显示隐藏数量、无法分类数量及来源未确认标记
 - 查询支持取消等待；文档、工作区或配置变化后拦截过期结果，跳转前再次检查有效性
+- 命令、上方名称、悬停、列表和提示文案跟随 VS Code 显示语言，提供英文与简体中文
 
 Go 源码、module/work 配置、工作区或 `go`、`gopls`、`goInterfaces` 设置变化时，查询会过期并立即停止本插件对公开 provider 的等待；源码或设置变化显示重新查询提示，主动取消保持静默。`gopls` 设置包括影响文件选择的构建标记与环境配置。[Go 扩展设置说明](https://github.com/golang/vscode-go/blob/master/docs/settings.md#gopls)
 
@@ -108,6 +109,7 @@ src/language/          VS Code 公开语言接口适配
 src/query/             查询协调、版本校验、范围与过滤
 src/presentation/      命令、结果导航与 CodeLens
 media/                 左侧实现方向 SVG 图标
+l10n/                  运行期界面文案的简体中文翻译
 examples/acceptance/   人工验收用 Go 示例，不含 go.mod，不进入 VSIX
 src/extension.ts       入口与资源释放
 .vscode/               F5 调试与构建任务
@@ -137,7 +139,7 @@ esbuild.mjs            扩展构建与两份 WASM 资源复制
 npm run package
 ```
 
-生成 `go-interfaces-impl-0.0.4.vsix`，通过 **Extensions: Install from VSIX...** 安装。允许列表只包含入口 JS、两份 WASM、四份原创 SVG 图标（两个方向各含深浅主题版本）、清单、翻译，以及包含第三方许可说明的 README，不包含 Go 可执行文件、源码、开发依赖或 source map。
+生成 `go-interfaces-impl-0.0.5.vsix`，通过 **Extensions: Install from VSIX...** 安装。允许列表只包含入口 JS、两份 WASM、四份原创 SVG 图标（两个方向各含深浅主题版本）、清单、清单翻译与运行期翻译，以及包含第三方许可说明的 README，不包含 Go 可执行文件、源码、开发依赖或 source map。
 
 当前未设置 Marketplace publisher，许可证保留为 `UNLICENSED`；本地打包使用 `--skip-license`。正式发布前仍需确定发布者与许可证。
 
