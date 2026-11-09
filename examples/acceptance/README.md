@@ -1,16 +1,37 @@
-# 人工验收示例
+# Go 接口实现关系示例
 
-本目录提供用于在扩展宿主中人工核对实现关系的 Go 源码。按仓库约定，这里不初始化 Go 项目：不包含 `go.mod`、`go.sum` 或 `go.work`，也不执行任何 Go 命令。示例不进入 VSIX，也不参与本仓库的检查与打包。
+本目录是可直接打开的独立 Go module，包含 `go.mod`，只使用 Go 标准库。module 路径为 `github.com/E1aina2007/Go-interfaces-impl/examples/acceptance`，跨包导入均指向本目录内的源码，不需要从 GitHub 下载，也不需要设置 `replace`、`GOPATH` 或 `go.work`。示例源码和 module 配置不进入 VSIX，不参与插件构建。
 
-## 准备
+## 直接查看插件效果
 
-插件只在最近的 `go.mod` 所界定的 module 内工作，因此需要在仓库外准备副本：
+开发插件时，在仓库根目录执行 `npm ci`，然后在 VS Code 的运行和调试面板选择 **Run Extension (Acceptance Examples)**，按 **F5**。该配置会编译插件，并在开发宿主中打开本目录和 `shapes/shapes.go`。
 
-1. 将 `examples/acceptance` 复制到仓库外的目录
-2. 在副本根目录自行创建 `go.mod`，module 路径必须为 `goifaces.example/acceptance`，Go 版本不低于 1.18
-3. 用 VS Code 开发宿主（F5）打开该副本，等待官方 Go 扩展和 gopls 就绪
+已安装 VSIX 时，直接用 VS Code 打开本目录即可：
 
-仓库的 `.gitignore` 也忽略了 `examples/` 下的 module 配置，防止误提交。
+```sh
+code examples/acceptance
+```
+
+需要安装并配置官方 Go 扩展 `golang.go` 和其所需的 Go SDK、gopls。信任工作区，等待语言服务加载完成后，打开 `shapes/shapes.go`，将 `Shape`、`Rect` 等声明滚动到可见区域：
+
+- `Shape` 上方显示 `实现者 (3) | Circle | Rect | Square`，左侧显示蓝色方向图标
+- `Rect` 上方显示 `实现 (1) | Shape`，左侧显示绿色方向图标
+- 点击关联名称跳到对应声明，点击方向和数量打开完整列表
+- 英文显示语言下，方向分别为 `Implemented by` 和 `Implements`
+
+这些是示例的预期关系，实际返回范围仍受 Go 语言服务限制。插件只自动查询当前可见声明，向下滚动可查看其他类型。左侧图标需要启用 `editor.glyphMargin`，上方名称需要启用 `editor.codeLens`；插件的 `goInterfaces.codeLens` 和 `goInterfaces.gutterIcons` 默认开启。
+
+无需手动初始化 module 或复制目录。若刚新增 `go.mod` 后旧窗口仍显示导入错误，重新打开本目录，或执行 **Go: Restart Language Server** 后等待加载。
+
+## 运行示例程序
+
+在本目录执行：
+
+```sh
+go run .
+```
+
+程序演示形状计算、跨包存储、组合接口和同名方法接口。这一步只用于运行 Go 示例，查看插件标记时无需运行程序。
 
 ## 场景与预期
 
@@ -27,6 +48,8 @@
 | `store/memory/fake_test.go`   | 测试文件声明的类型           | 过滤开启时隐藏 `fakeStore`                                              |
 | `store/memory/helper_test.go` | `_test.go` 未导入 testing    | `helperStore` 保留                                                      |
 | `store/memory/quick_test.go`  | 仅导入 `testing/quick`       | `quickStore` 保留                                                       |
+
+`*_test.go` 是人工核对测试来源过滤的声明样例，不包含单元测试函数，也无需执行 `go test`。切换 **Go Interfaces: 切换测试来源过滤** 后，在 `store/store.go` 的 `Store` 上重新查看结果；语言服务是否返回测试变体位置取决于当前加载状态，不能仅凭零项结果认定不存在实现。
 
 ## 交互检查
 

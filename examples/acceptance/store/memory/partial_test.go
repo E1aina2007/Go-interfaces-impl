@@ -3,15 +3,16 @@ package memory
 import (
 	"testing"
 
-	"goifaces.example/acceptance/store"
+	"github.com/E1aina2007/Go-interfaces-impl/examples/acceptance/store"
 )
 
 // Put completes Store for Partial only in the test package variant.
+// Put 只在测试包变体中补齐 Partial 实现 Store 所需的方法
 func (p Partial) Put(key, value string) {}
 
-func TestPartial(t *testing.T) {
-	var s store.Store = Partial{value: "v"}
-	if _, ok := s.Get("k"); !ok {
-		t.Fatal("expected a value")
-	}
-}
+// Keep the exact testing import for filtering without adding an executable unit test.
+// 保留过滤所需的精确 testing 导入，不定义可执行的单元测试
+var (
+	_ *testing.T
+	_ store.Store = Partial{}
+)

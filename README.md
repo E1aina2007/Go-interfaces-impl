@@ -2,7 +2,7 @@
 
 用于查看当前 Go module 内 struct 与 interface 的实现关系，在类型声明行左侧显示方向图标，上方显示可点击跳转的关联类型名称，并保留原生结果列表。
 
-插件源码使用 TypeScript。开发与打包仅需要 Node.js 和 npm；仓库不包含 Go 源码、Go module、自有分析器或 Go 构建检查。语义查询通过 VS Code 的公开语言接口复用官方 Go 扩展，因此使用查询功能仍需配置该扩展的 Go SDK 与 gopls。
+插件源码使用 TypeScript，开发与打包仅需要 Node.js 和 npm，不包含自有 Go 分析器。`examples/acceptance/` 是独立的 Go module，用于人工体验插件，不参与插件构建或 VSIX 打包。语义查询通过 VS Code 的公开语言接口复用官方 Go 扩展，因此使用查询功能仍需配置该扩展的 Go SDK 与 gopls。
 
 ## 当前功能
 
@@ -37,7 +37,7 @@ Go 源码、module/work 配置、工作区或 `go`、`gopls`、`goInterfaces` �
 
 类型别名与具名引用沿用原有公开 definition 解析规则，解析后按实际类型种类显示关联名称与方向图标。后台只查询可见声明，不扫描整个 module；打开文件、滚动及源码或配置变化后，合并 400 毫秒内的刷新事件并串行执行查询。暂未返回结果时显示查询中入口，查询失败时显示重试入口并记录日志，不把失败显示为零个实现。已查询但没有可展示匹配时不显示名称或图标。
 
-源码或设置变化后，已显示的名称和图标会按声明名称保留到新结果返回，避免输入时反复闪烁；刷新期间这些名称和悬停内容只作文字展示，不可点击跳转。当前文件存在语法错误时不发起新查询，继续保留旧展示；其他候选文件存在语法错误时，只将对应候选计入摘要中的 `unreadable`，不使整次查询失败。语言服务返回的同类关系（接口之间）不属于本插件的关系范围，不计入 `unsupported`。同一 generation 内，每个文件只确认一次语言服务就绪。
+源码或设置变化后，已显示的名称和图标会按声明名称保留到新结果返回，避免输入时反复闪烁；刷新期间这些名称和悬停内容只作文字展示，不可点击跳转。当前文件存在语法错误时不发起新查询，继续保留旧展示；其他候选文件存在语法错误时，只将对应候选计入摘要中的 `unreadable`，不使整次查询失败。语言服务返回的同类关系（接口之间）不属于本插件的关系范围，不计入 `unsupported`。同一 generation 内，成功的语言服务就绪检查按文件复用，失败或取消后可重试。
 
 module 边界通过当前文件最近的 `go.mod` 和规范化后的物理路径确定，不执行 Go 命令读取环境。`go.work` 的其他 module 不进入结果；当前文件必须位于打开的文件系统工作区中。虚拟工作区与未信任工作区不启用本扩展。
 
@@ -74,7 +74,9 @@ npm ci
 npm run compile
 ```
 
-使用 VS Code 打开仓库并按 **F5**。开发宿主需要官方 Go 扩展 `golang.go`，扩展清单已声明该依赖；打开已有 Go module，等待 Go 语言服务就绪后，将光标放在类型名称上执行查询。
+使用 VS Code 打开仓库，选择 **Run Extension (Acceptance Examples)** 并按 **F5**。开发宿主会直接打开已初始化的 `examples/acceptance/` module 和 `shapes/shapes.go`；等待 Go 语言服务就绪后，`Shape` 声明上方应显示 `Circle`、`Rect`、`Square`，左侧显示实现方向图标。完整操作与过滤场景见 [示例说明](examples/acceptance/README.md)。
+
+开发宿主需要官方 Go 扩展 `golang.go`，扩展清单已声明该依赖。选择 **Run Extension** 可以打开其他已有 Go module，并从类型名称处执行查询。仅安装 VSIX 时，也可直接用 VS Code 打开 `examples/acceptance/` 文件夹体验，无需复制目录或下载本仓库的 Go 包。
 
 **Go Interfaces: 查看输出** / **Show Output** 可查看日志。修改插件代码后重新加载开发宿主；`npm run watch` 会持续进行 TypeScript 检查和开发构建，不提供运行时热替换。
 
@@ -98,7 +100,7 @@ npm run compile
 | `goInterfaces.codeLens`                   | `true` | 自动显示类型声明上方的关联名称       |
 | `goInterfaces.gutterIcons`                | `true` | 显示声明行左侧的实现方向图标         |
 
-名称与图标共用同一份已过滤查询结果。源码、工作区和相关设置变化时立即清除旧标记并重新查询可见声明；切换文件后释放隐藏文档的展示缓存。导航同时检查文档版本与查询 generation，拦截旧名称、旧悬停链接和旧列表的过期跳转。计数只表示当前 provider 返回的可展示结果，不表示完整实现数量。
+名称与图标共用同一份已过滤查询结果。源码、工作区和相关设置变化时，旧查询立即失效，按声明保留旧名称和图标作为只读展示，再重新查询可见声明；切换文件后释放隐藏文档的展示缓存。刷新期间旧名称不绑定跳转命令，旧悬停内容不提供有效导航；导航入口在跳转前检查结果有效性。计数只表示当前 provider 返回的可展示结果，不表示完整实现数量。
 
 ## 目录与验证
 
@@ -110,7 +112,7 @@ src/query/             查询协调、版本校验、范围与过滤
 src/presentation/      命令、结果导航与 CodeLens
 media/                 左侧实现方向 SVG 图标
 l10n/                  运行期界面文案的简体中文翻译
-examples/acceptance/   人工验收用 Go 示例，不含 go.mod，不进入 VSIX
+examples/acceptance/   可直接打开与运行的独立 Go module，不进入 VSIX
 src/extension.ts       入口与资源释放
 .vscode/               F5 调试与构建任务
 .github/workflows/     Windows / Linux 的 Node.js 检查和打包
