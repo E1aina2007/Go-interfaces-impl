@@ -153,7 +153,16 @@ export class ImplementationCommands implements Disposable {
 			if (!this.queries.isCurrent(result)) {
 				throw new StaleQueryError();
 			}
-			await window.showTextDocument(selected.match.location.uri, {
+			const document = await workspace.openTextDocument(selected.match.location.uri);
+			// Opening the target can yield to source changes or a newer command before navigation.
+			// 打开目标期间可能发生源码变化或启动新命令，跳转前需要再次检查
+			if (request.token.isCancellationRequested || this.disposed) {
+				return;
+			}
+			if (!this.queries.isCurrent(result)) {
+				throw new StaleQueryError();
+			}
+			await window.showTextDocument(document, {
 				selection: selected.match.location.range,
 				preview: true,
 			});
