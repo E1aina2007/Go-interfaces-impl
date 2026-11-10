@@ -54,6 +54,17 @@ interface PendingAnnotation {
 	readonly request: CancellationTokenSource;
 }
 
+interface DocumentLoad {
+	readonly document: TextDocument;
+	readonly version: number;
+	readonly revision: number;
+}
+
+interface PendingDocumentLoad {
+	readonly request: DocumentLoad;
+	readonly result: Promise<DocumentAnnotations | undefined>;
+}
+
 export function shownResult(item: Annotation): ShownResult | undefined {
 	if (item.result) {
 		return { result: item.result, stale: false };
@@ -92,6 +103,7 @@ export class ImplementationAnnotations implements Disposable {
 	private readonly changed = new EventEmitter<void>();
 	private readonly subscriptions: Disposable[];
 	private readonly documents = new Map<string, DocumentAnnotations>();
+	private readonly loading = new Map<TextDocument, PendingDocumentLoad>();
 	// Results kept per document URI and declaration key while the next query runs.
 	// 按文档 URI 和声明键保存的结果，在下一次查询完成前继续展示
 	private readonly previous = new Map<string, Map<string, QueryResult>>();
@@ -114,36 +126,27 @@ export class ImplementationAnnotations implements Disposable {
 				this.active?.request.cancel();
 				this.retain();
 				this.documents.clear();
+				this.loading.clear();
+				this.prune();
 				this.changed.fire();
 				this.schedule();
 			}),
 			window.onDidChangeVisibleTextEditors(() => {
-				for (const [key, state] of this.documents) {
-					if (
-						!window.visibleTextEditors.some(
-							(editor) => editor.document === state.document,
-						)
-					) {
-						this.documents.delete(key);
-					}
-				}
-				for (const key of this.previous.keys()) {
-					if (
-						!window.visibleTextEditors.some(
-							(editor) => editor.document.uri.toString() === key,
-						)
-					) {
-						this.previous.delete(key);
-					}
-				}
+				this.prune();
 				this.visibleChanged();
 				this.changed.fire();
 			}),
 			window.onDidChangeTextEditorVisibleRanges(() => this.visibleChanged()),
 			workspace.onDidChangeConfiguration((event) => {
 				if (event.affectsConfiguration('editor.codeLens')) {
+					this.prune();
 					this.visibleChanged();
 					this.changed.fire();
+				}
+			}),
+			workspace.onDidCloseTextDocument((document) => {
+				if (this.drop(document)) {
+					this.visibleChanged();
 				}
 			}),
 			commands.registerCommand(
@@ -194,33 +197,74 @@ export class ImplementationAnnotations implements Disposable {
 		return this.previous.has(document.uri.toString());
 	}
 
-	async load(document: TextDocument): Promise<DocumentAnnotations | undefined> {
-		if (
-			this.disposed ||
-			(!annotationsEnabled(document, 'codeLens') &&
-				!annotationsEnabled(document, 'gutterIcons'))
-		) {
+	load(document: TextDocument): Promise<DocumentAnnotations | undefined> {
+		if (!this.available(document)) {
 			this.drop(document);
-			return undefined;
+			return Promise.resolve(undefined);
 		}
 		const previous = this.get(document);
 		if (previous) {
-			return previous;
+			return Promise.resolve(previous);
 		}
-		const version = document.version;
-		const revision = this.revision;
+		const pending = this.loading.get(document);
+		if (
+			pending?.request.version === document.version &&
+			pending.request.revision === this.revision
+		) {
+			return pending.result;
+		}
+		const request = { document, version: document.version, revision: this.revision };
+		// Register before starting work so all editor entry points share this load.
+		// 先登记再开始读取，让各个编辑器入口共用同一次加载
+		const result = Promise.resolve()
+			.then(() => this.read(request))
+			.finally(() => {
+				// A detached load must not remove a newer load for the same document.
+				// 已脱离缓存的旧加载不能删除同一文档的新加载
+				if (this.loading.get(document)?.request === request) {
+					this.loading.delete(document);
+				}
+			});
+		this.loading.set(document, { request, result });
+		return result;
+	}
+
+	private available(document: TextDocument): boolean {
+		return (
+			!this.disposed &&
+			(annotationsEnabled(document, 'codeLens') ||
+				annotationsEnabled(document, 'gutterIcons')) &&
+			window.visibleTextEditors.some((editor) => editor.document === document)
+		);
+	}
+
+	private currentLoad(request: DocumentLoad): boolean {
+		return (
+			this.loading.get(request.document)?.request === request &&
+			request.document.version === request.version &&
+			request.revision === this.revision &&
+			this.available(request.document)
+		);
+	}
+
+	private async read(request: DocumentLoad): Promise<DocumentAnnotations | undefined> {
+		const { document, version } = request;
 		try {
-			if (!(await findModule(document.uri.toString()))) {
+			if (!this.currentLoad(request)) {
+				return undefined;
+			}
+			const module = await findModule(document.uri.toString());
+			// Recheck after each wait: hidden or superseded loads must not parse or repopulate caches.
+			// 每次等待后重新检查，已隐藏或被替代的加载不能继续解析或重新写入缓存
+			if (!this.currentLoad(request)) {
+				return undefined;
+			}
+			if (!module) {
 				this.drop(document);
 				return undefined;
 			}
 			const file = await this.syntax.read(document.getText());
-			if (
-				this.disposed ||
-				document.isClosed ||
-				document.version !== version ||
-				revision !== this.revision
-			) {
+			if (!this.currentLoad(request)) {
 				return undefined;
 			}
 			const uri = document.uri.toString();
@@ -250,12 +294,6 @@ export class ImplementationAnnotations implements Disposable {
 					previous: retained?.get(key),
 				});
 			}
-			// Concurrent CodeLens and editor callbacks must share the same result storage.
-			// CodeLens 与编辑器回调并行到达时，必须共用同一份结果存储
-			const existing = this.get(document);
-			if (existing) {
-				return existing;
-			}
 			const state = { document, version, items, blocked: file.hasErrors };
 			this.documents.set(uri, state);
 			this.previous.delete(uri);
@@ -265,7 +303,7 @@ export class ImplementationAnnotations implements Disposable {
 			this.schedule();
 			return state;
 		} catch (error) {
-			if (!this.disposed) {
+			if (this.currentLoad(request)) {
 				this.output.error('Unable to read Go declarations for editor annotations', error);
 				this.drop(document);
 			}
@@ -273,11 +311,40 @@ export class ImplementationAnnotations implements Disposable {
 		}
 	}
 
-	// Discard retained results that can no longer be attached, so old icons do not linger.
-	// 丢弃无法再接续的旧结果，避免旧图标一直残留
-	private drop(document: TextDocument): void {
-		if (this.previous.delete(document.uri.toString()) && !this.disposed) {
+	// Release cached state and detach pending work together so late loads cannot restore it.
+	// 同时释放缓存状态并移除在途任务，防止迟到的加载重新恢复状态
+	private drop(document: TextDocument): boolean {
+		const uri = document.uri.toString();
+		const removed =
+			this.documents.get(uri)?.document === document && this.documents.delete(uri);
+		const retained = this.previous.delete(uri);
+		const loading = this.loading.delete(document);
+		if ((removed || retained) && !this.disposed) {
 			this.changed.fire();
+		}
+		return removed || retained || loading;
+	}
+
+	private prune(): void {
+		for (const [uri, state] of this.documents) {
+			if (!this.available(state.document)) {
+				this.documents.delete(uri);
+			}
+		}
+		for (const document of this.loading.keys()) {
+			if (!this.available(document)) {
+				this.loading.delete(document);
+			}
+		}
+		for (const uri of this.previous.keys()) {
+			if (
+				!window.visibleTextEditors.some(
+					(editor) =>
+						editor.document.uri.toString() === uri && this.available(editor.document),
+				)
+			) {
+				this.previous.delete(uri);
+			}
 		}
 	}
 
@@ -502,6 +569,7 @@ export class ImplementationAnnotations implements Disposable {
 			subscription.dispose();
 		}
 		this.documents.clear();
+		this.loading.clear();
 		this.previous.clear();
 		this.changed.dispose();
 	}

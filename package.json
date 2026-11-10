@@ -2,7 +2,7 @@
   "name": "go-interfaces-impl",
   "displayName": "Go Interfaces",
   "description": "%extension.description%",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "private": true,
   "license": "UNLICENSED",
   "repository": {

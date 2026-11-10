@@ -66,7 +66,12 @@ export class ImplementationLenses implements CodeLensProvider {
 			return [];
 		}
 		const state = await this.annotations.load(document);
-		if (!state || token.isCancellationRequested) {
+		if (
+			!state ||
+			token.isCancellationRequested ||
+			!annotationsEnabled(document, 'codeLens') ||
+			this.annotations.get(document) !== state
+		) {
 			return [];
 		}
 		const lenses: CodeLens[] = [];
