@@ -10,7 +10,7 @@
 - 在 interface 名称处执行 **Go Interfaces: 查看实现接口的结构体** / **Show Implementing Structs**
 - 使用 **Go Interfaces: 查看类型实现关系** / **Show Type Implementation Relations** 自动选择方向，适用于类型别名与基于具名类型的新定义
 - 自动查询当前编辑器可见的类型声明：struct 上方显示 `Implements (2) | Reader | Closer`，interface 上方显示 `Implemented by (2) | File | Buffer`，点击名称直接跳转
-- 有匹配结果时，在声明行左侧显示方向图标；悬停可查看名称、路径与导航链接
+- 有匹配结果时，在声明行左侧显示方向图标；悬停类型声明名称可查看关联名称、路径与导航链接
 - 原创圆角接口徽标配合方向箭头，绿色表示实现接口、蓝色表示存在实现者，自动适配深浅主题
 - 上方最多显示 6 个关联名称，点击名称前的方向与数量可打开完整列表；名称后的 `?` 表示测试来源未完全确认
 - 从类型引用处发起查询；编辑器右键菜单和命令面板保留两个方向的操作
@@ -23,7 +23,7 @@ Go 源码、module/work 配置、工作区或 `go`、`gopls`、`goInterfaces` �
 
 用户已反馈旧版可以显示实现查询结果。新版在开发宿主中已核对 `schema.Memory` 的实现者名称、左侧图标以及跳转到 `ConversationBuffer`；该样例不代表全部类型、刷新与过滤场景均已验收。
 
-左侧图标使用公开 gutter decoration API；该接口没有图标单击回调，图标提供悬停导航链接，上方名称支持直接单击跳转。显示图标需要启用 VS Code 的 `editor.glyphMargin`，显示上方名称需要启用 `editor.codeLens`。
+左侧图标使用公开 gutter decoration API，该接口没有图标单击回调。将指针放在类型声明名称上可查看关系悬停及导航链接，上方名称支持直接单击跳转；关系悬停与图标一起受 `goInterfaces.gutterIcons` 控制。显示图标需要启用 VS Code 的 `editor.glyphMargin`，显示上方名称需要启用 `editor.codeLens`。
 
 ## 能力边界
 
@@ -37,7 +37,7 @@ Go 源码、module/work 配置、工作区或 `go`、`gopls`、`goInterfaces` �
 
 类型别名与具名引用沿用原有公开 definition 解析规则，解析后按实际类型种类显示关联名称与方向图标。后台只查询可见声明，不扫描整个 module；打开文件、滚动及源码或配置变化后，合并 400 毫秒内的刷新事件并串行执行查询。暂未返回结果时显示查询中入口，查询失败时显示重试入口并记录日志，不把失败显示为零个实现。已查询但没有可展示匹配时不显示名称或图标。
 
-源码或设置变化后，已显示的名称和图标会按声明名称保留到新结果返回，避免输入时反复闪烁；刷新期间这些名称和悬停内容只作文字展示，不可点击跳转。当前文件存在语法错误时不发起新查询，继续保留旧展示；其他候选文件存在语法错误时，只将对应候选计入摘要中的 `unreadable`，不使整次查询失败。语言服务返回的同类关系（接口之间）不属于本插件的关系范围，不计入 `unsupported`。同一 generation 内，成功的语言服务就绪检查按文件复用，失败或取消后可重试。
+源码或设置变化后，已显示的名称和图标会按声明名称保留到新结果返回，避免输入时反复闪烁；失效时关闭已打开的关系悬停；刷新期间重新悬停只显示只读内容，上方旧名称不可点击跳转。当前文件存在语法错误时不发起新查询，继续保留旧展示；其他候选文件存在语法错误时，只将对应候选计入摘要中的 `unreadable`，不使整次查询失败。语言服务返回的同类关系（接口之间）不属于本插件的关系范围，不计入 `unsupported`。同一 generation 内，成功的语言服务就绪检查按文件复用，失败或取消后可重试。
 
 module 边界通过当前文件最近的 `go.mod` 和规范化后的物理路径确定，不执行 Go 命令读取环境。`go.work` 的其他 module 不进入结果；当前文件必须位于打开的文件系统工作区中。虚拟工作区与未信任工作区不启用本扩展。
 
@@ -100,7 +100,7 @@ npm run compile
 | `goInterfaces.codeLens`                   | `true` | 自动显示类型声明上方的关联名称       |
 | `goInterfaces.gutterIcons`                | `true` | 显示声明行左侧的实现方向图标         |
 
-名称与图标共用同一份已过滤查询结果。源码、工作区和相关设置变化时，旧查询立即失效，按声明保留旧名称和图标作为只读展示，再重新查询可见声明；切换文件后释放隐藏文档的展示缓存。刷新期间旧名称不绑定跳转命令，旧悬停内容不提供有效导航；导航入口在跳转前检查结果有效性。计数只表示当前 provider 返回的可展示结果，不表示完整实现数量。
+名称与图标共用同一份已过滤查询结果。源码、工作区和相关设置变化时，旧查询立即失效，按声明保留旧名称和图标作为只读展示，再重新查询可见声明；切换文件后释放隐藏文档的展示缓存。刷新期间旧名称不绑定跳转命令，重新请求的关系悬停不包含导航链接；导航入口在跳转前检查结果有效性。计数只表示当前 provider 返回的可展示结果，不表示完整实现数量。
 
 ## 目录与验证
 
@@ -133,6 +133,8 @@ esbuild.mjs            扩展构建与两份 WASM 资源复制
 
 2026-11-09 导航保护切片（0.0.6）补齐独立查询列表在打开目标文档后的取消与过期检查。真实开发宿主中核对了名称与图标、名称跳转、命令列表跨包跳转，以及中文名称、结果摘要和过期提示；单次临时语法错误下旧名称保持只读，撤销后恢复查询。过滤开关在 0.0.5 基线上核对为 5 / 7 项，0.0.6 中文宿主再次确认过滤开启时的 5 项及未确认提示。示例目录的 `go run .` 运行成功，未编写或运行单元测试。打开目标瞬间发生变化的竞态、连续输入稳定性、候选文件语法错误、取消等待与复杂工作区仍待专项验收。
 
+2026-11-10 悬停保护切片（0.0.7）将关系悬停改为通过公开 HoverProvider 按需生成，失效时关闭旧弹层，图标继续跟随编辑。修正命令链接参数的 URI 序列化，保留 Windows 文件 URI、百分号转义及类型身份。中文宿主核对了旧弹层关闭、只读悬停、插入两行时图标同步移动、撤销恢复，以及实际点击关联名称和完整列表后的导航；图标与悬停开关、关闭上方名称后仍保留图标和悬停的场景也已核对。没有编写或运行单元测试，未调用 Go 工具。
+
 历史运行依赖审计 `npm audit --omit=dev` 为 0 项告警，开发工具链存在 minimatch 的上游告警；本轮未重新审计依赖，开发依赖不进入 VSIX。已核对的有限宿主样例不代表双向查询、测试过滤、导航、取消、多 module 和远程环境均已通过，本地静态检查也不替代这些证据。
 
 业务设计与模块计划位于被忽略的本地 `docs/`，不会纳入提交。
@@ -143,14 +145,14 @@ esbuild.mjs            扩展构建与两份 WASM 资源复制
 npm run package
 ```
 
-生成 `go-interfaces-impl-0.0.6.vsix`，通过 **Extensions: Install from VSIX...** 安装。允许列表只包含入口 JS、两份 WASM、四份原创 SVG 图标（两个方向各含深浅主题版本）、清单、清单翻译与运行期翻译，以及包含第三方许可说明的 README，不包含 Go 可执行文件、源码、开发依赖或 source map。
+生成 `go-interfaces-impl-0.0.7.vsix`，通过 **Extensions: Install from VSIX...** 安装。允许列表只包含入口 JS、两份 WASM、四份原创 SVG 图标（两个方向各含深浅主题版本）、清单、清单翻译与运行期翻译，以及包含第三方许可说明的 README，不包含 Go 可执行文件、源码、开发依赖或 source map。
 
 当前未设置 Marketplace publisher，许可证保留为 `UNLICENSED`；本地打包使用 `--skip-license`。正式发布前仍需确定发布者与许可证。
 
 ## 参考来源
 
 - [官方 Go 扩展](https://github.com/golang/vscode-go)：复用现有 Go 语言服务
-- [VS Code 公开命令](https://code.visualstudio.com/api/references/commands)：definition、implementation 和 document symbol
+- [VS Code 公开命令](https://code.visualstudio.com/api/references/commands)：definition、implementation 和 document symbol；[悬停命令链接](https://code.visualstudio.com/api/extension-guides/command#command-uris) 用于类型名称处的关系导航
 - [Tree-sitter WASM](https://github.com/microsoft/vscode-tree-sitter-wasm)：预构建的语法运行时和 Go 语法
 - [ESLint](https://github.com/microsoft/vscode-eslint) / [Prettier](https://github.com/prettier/prettier-vscode)：沿用初始化时参考的扩展组织和工具链做法
 
