@@ -87,8 +87,8 @@ export class AnnotationRefresh implements Disposable {
 					if (
 						this.disposed ||
 						state.blocked ||
-						item.result ||
-						item.error ||
+						item.state.kind === 'ready' ||
+						item.state.kind === 'failed' ||
 						!this.visible(state, item)
 					) {
 						continue;
@@ -108,8 +108,9 @@ export class AnnotationRefresh implements Disposable {
 							this.visible(state, item) &&
 							this.queries.isCurrent(result)
 						) {
-							item.result = result;
-							delete item.previous;
+							// An empty successful result is complete too; do not query it again on each refresh.
+							// 成功的空结果也表示查询完成，避免每次刷新都重复查询
+							item.state = { kind: 'ready', result };
 						}
 					} catch (error) {
 						if (
@@ -120,8 +121,10 @@ export class AnnotationRefresh implements Disposable {
 						) {
 							return;
 						}
-						item.error = error instanceof Error ? error.message : String(error);
-						delete item.previous;
+						item.state = {
+							kind: 'failed',
+							message: error instanceof Error ? error.message : String(error),
+						};
 						this.output.error(
 							'Unable to query Go editor implementation annotations',
 							error,

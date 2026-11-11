@@ -76,11 +76,11 @@ export class ImplementationLenses implements CodeLensProvider {
 		}
 		const lenses: CodeLens[] = [];
 		for (const item of state.items) {
-			if (item.error) {
+			if (item.state.kind === 'failed') {
 				lenses.push(
 					new CodeLens(item.range, {
 						title: l10n.t('Unable to load relations · Retry'),
-						tooltip: item.error,
+						tooltip: item.state.message,
 						command: retryRelation,
 						arguments: [document.uri.toString(), state.version, item.start],
 					}),

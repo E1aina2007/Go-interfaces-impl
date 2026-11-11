@@ -42,8 +42,14 @@ export class AnnotationCommands implements Disposable {
 				(source: string, version: number, offset: number): void => {
 					const state = this.documents.find(source);
 					const item = state?.items.find((item) => item.start === offset);
-					if (state?.version === version && state.document.version === version && item) {
-						delete item.error;
+					if (
+						state?.version === version &&
+						state.document.version === version &&
+						item?.state.kind === 'failed'
+					) {
+						// Replayed retry commands must not reset successful or retained results.
+						// 重放的重试命令不能重置成功结果或保留的旧结果
+						item.state = { kind: 'pending' };
 						retried();
 					}
 				},
@@ -58,7 +64,8 @@ export class AnnotationCommands implements Disposable {
 		generation: number,
 	): QueryResult {
 		const state = this.documents.find(source);
-		const result = state?.items.find((item) => item.start === offset)?.result;
+		const item = state?.items.find((item) => item.start === offset);
+		const result = item?.state.kind === 'ready' ? item.state.result : undefined;
 		if (
 			!state ||
 			state.document.isClosed ||

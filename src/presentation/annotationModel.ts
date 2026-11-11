@@ -7,17 +7,21 @@ export const showRelations = 'goInterfaces.showRelations';
 export const retryRelation = 'goInterfaces.retryRelation';
 export const inlineLimit = 6;
 
+// Keep display states exclusive; stale results may be shown but never used for navigation.
+// 展示状态互斥，旧结果仅供展示，不能用于导航
+export type AnnotationState =
+	| { readonly kind: 'pending' }
+	| { readonly kind: 'stale'; readonly result: QueryResult }
+	| { readonly kind: 'ready'; readonly result: QueryResult }
+	| { readonly kind: 'failed'; readonly message: string };
+
 export interface Annotation {
 	// Declaration name plus its occurrence, stable across edits that only move offsets.
 	// 声明名称加出现序号，在仅移动偏移的编辑前后保持稳定
 	readonly key: string;
 	readonly start: number;
 	readonly range: Range;
-	result?: QueryResult;
-	error?: string;
-	// Display-only result from before the latest change; never used for navigation.
-	// 最近一次变化前的结果，仅用于展示，不用于导航
-	previous?: QueryResult | undefined;
+	state: AnnotationState;
 }
 
 export interface DocumentAnnotations {
@@ -35,11 +39,11 @@ export interface ShownResult {
 }
 
 export function shownResult(item: Annotation): ShownResult | undefined {
-	if (item.result) {
-		return { result: item.result, stale: false };
+	if (item.state.kind === 'ready') {
+		return { result: item.state.result, stale: false };
 	}
-	if (item.previous && !item.error) {
-		return { result: item.previous, stale: true };
+	if (item.state.kind === 'stale') {
+		return { result: item.state.result, stale: true };
 	}
 	return undefined;
 }
@@ -93,6 +97,7 @@ export function createAnnotations(
 		const occurrence = occurrences.get(declaration.name) ?? 0;
 		occurrences.set(declaration.name, occurrence + 1);
 		const key = `${declaration.name}#${occurrence}`;
+		const previous = retained?.get(key);
 		items.push({
 			key,
 			start: declaration.start,
@@ -100,7 +105,7 @@ export function createAnnotations(
 				document.positionAt(declaration.start),
 				document.positionAt(declaration.end),
 			),
-			previous: retained?.get(key),
+			state: previous ? { kind: 'stale', result: previous } : { kind: 'pending' },
 		});
 	}
 	return { document, version, items, blocked: file.hasErrors };
