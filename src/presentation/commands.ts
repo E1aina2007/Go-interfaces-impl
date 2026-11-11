@@ -1,7 +1,6 @@
 import {
 	CancellationError,
 	CancellationTokenSource,
-	ConfigurationTarget,
 	Position,
 	ProgressLocation,
 	ThemeIcon,
@@ -14,8 +13,10 @@ import {
 	type LogOutputChannel,
 	type QuickPickItem,
 } from 'vscode';
+import { toggleTestingFilter } from './filterCommand';
 import type { TypeKind } from '../core/types';
-import { type ImplementationQueries, StaleQueryError, type QueryResult } from '../query/service';
+import { StaleQueryError, type QueryResult } from '../query/model';
+import type { ImplementationQueries } from '../query/service';
 import type { LocatedType } from '../query/resolve';
 import { errorMessage, relationDirection, relationSummary, unverifiedNote } from './labels';
 
@@ -53,7 +54,7 @@ export class ImplementationCommands implements Disposable {
 					this.run('interface', uri, position, version),
 			),
 			commands.registerCommand('goInterfaces.toggleTestingFilter', (): Promise<void> =>
-				this.toggleFilter(),
+				toggleTestingFilter(this.output, () => this.active?.cancel()),
 			),
 		];
 	}
@@ -185,36 +186,6 @@ export class ImplementationCommands implements Disposable {
 				this.active = undefined;
 			}
 			request.dispose();
-		}
-	}
-
-	private async toggleFilter(): Promise<void> {
-		const uri = window.activeTextEditor?.document.uri;
-		if (!uri || !workspace.getWorkspaceFolder(uri)) {
-			void window.showInformationMessage(
-				l10n.t('Open a Go file in a workspace to change its test filter.'),
-			);
-			return;
-		}
-		try {
-			const configuration = workspace.getConfiguration('goInterfaces', uri);
-			const enabled = configuration.get<boolean>('hideTestingImplementations', true);
-			await configuration.update(
-				'hideTestingImplementations',
-				!enabled,
-				ConfigurationTarget.WorkspaceFolder,
-			);
-			this.active?.cancel();
-			void window.showInformationMessage(
-				enabled
-					? l10n.t('Go Interfaces: Test source filter disabled.')
-					: l10n.t('Go Interfaces: Test source filter enabled.'),
-			);
-		} catch (error) {
-			this.output.error('Unable to update the test filter', error);
-			void window.showErrorMessage(
-				l10n.t('Go Interfaces: Unable to change the test filter: {0}', String(error)),
-			);
 		}
 	}
 

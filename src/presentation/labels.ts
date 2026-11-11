@@ -1,5 +1,5 @@
 import { l10n } from 'vscode';
-import type { QueryResult } from '../query/service';
+import type { QueryResult } from '../query/model';
 
 export function relationDirection(result: QueryResult): string {
 	return result.subject.declaration.kind === 'struct'

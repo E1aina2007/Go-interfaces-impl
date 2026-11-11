@@ -17,6 +17,7 @@ import {
 	type TextEditor,
 	type TextEditorDecorationType,
 } from 'vscode';
+import type { ImplementationAnnotations } from './annotations';
 import {
 	annotationsEnabled,
 	inlineLimit,
@@ -24,8 +25,7 @@ import {
 	relationArguments,
 	shownResult,
 	showRelations,
-	type ImplementationAnnotations,
-} from './annotations';
+} from './annotationModel';
 import { relationDirection, relationSummary, unverifiedNote } from './labels';
 
 function appendLink(

@@ -7,7 +7,8 @@ import {
 	type Range,
 	type TextDocument,
 } from 'vscode';
-import type { QueryResult } from '../query/service';
+import type { QueryResult } from '../query/model';
+import type { ImplementationAnnotations } from './annotations';
 import {
 	annotationsEnabled,
 	inlineLimit,
@@ -16,8 +17,7 @@ import {
 	retryRelation,
 	shownResult,
 	showRelations,
-	type ImplementationAnnotations,
-} from './annotations';
+} from './annotationModel';
 import { findImplementations } from './commands';
 import { relationDirection, relationSummary } from './labels';
 

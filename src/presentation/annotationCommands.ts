@@ -1,0 +1,148 @@
+import { commands, window, workspace, type Disposable, type LogOutputChannel } from 'vscode';
+import { StaleQueryError, type QueryResult } from '../query/model';
+import type { ImplementationQueries } from '../query/service';
+import type { AnnotationDocuments } from './annotationDocuments';
+import { openRelation, retryRelation, showRelations } from './annotationModel';
+import { errorMessage, relationDirection, relationSummary, unverifiedNote } from './labels';
+
+export class AnnotationCommands implements Disposable {
+	private readonly subscriptions: Disposable[];
+	private disposed = false;
+
+	constructor(
+		private readonly documents: AnnotationDocuments,
+		private readonly queries: ImplementationQueries,
+		private readonly output: LogOutputChannel,
+		retried: () => void,
+	) {
+		this.subscriptions = [
+			commands.registerCommand(
+				openRelation,
+				(
+					source: string,
+					version: number,
+					offset: number,
+					generation: number,
+					target: string,
+				): Promise<void> => this.navigate(source, version, offset, generation, target),
+			),
+			commands.registerCommand(
+				showRelations,
+				(
+					source: string,
+					version: number,
+					offset: number,
+					generation: number,
+				): Promise<void> => this.showAll(source, version, offset, generation),
+			),
+			commands.registerCommand(
+				retryRelation,
+				(source: string, version: number, offset: number): void => {
+					const state = this.documents.find(source);
+					const item = state?.items.find((item) => item.start === offset);
+					if (state?.version === version && state.document.version === version && item) {
+						delete item.error;
+						retried();
+					}
+				},
+			),
+		];
+	}
+
+	private current(
+		source: string,
+		version: number,
+		offset: number,
+		generation: number,
+	): QueryResult {
+		const state = this.documents.find(source);
+		const result = state?.items.find((item) => item.start === offset)?.result;
+		if (
+			!state ||
+			state.document.isClosed ||
+			state.version !== version ||
+			state.document.version !== version ||
+			!result ||
+			result.generation !== generation ||
+			!this.queries.isCurrent(result)
+		) {
+			throw new StaleQueryError();
+		}
+		return result;
+	}
+
+	private async navigate(
+		source: string,
+		version: number,
+		offset: number,
+		generation: number,
+		target: string,
+	): Promise<void> {
+		try {
+			const result = this.current(source, version, offset, generation);
+			const match = result.matches.find((item) => item.id === target);
+			if (!match) {
+				throw new StaleQueryError();
+			}
+			const document = await workspace.openTextDocument(match.location.uri);
+			if (this.disposed || !this.queries.isCurrent(result)) {
+				throw new StaleQueryError();
+			}
+			await window.showTextDocument(document, {
+				selection: match.location.range,
+				preview: true,
+			});
+		} catch (error) {
+			this.report(error);
+		}
+	}
+
+	private async showAll(
+		source: string,
+		version: number,
+		offset: number,
+		generation: number,
+	): Promise<void> {
+		try {
+			const result = this.current(source, version, offset, generation);
+			const selected = await window.showQuickPick(
+				result.matches.map((match) => ({
+					label: match.declaration.name,
+					description: workspace.asRelativePath(match.location.uri),
+					detail: `${match.location.uri.fsPath}:${match.location.range.start.line + 1}${unverifiedNote(result, match.id)}`,
+					match,
+				})),
+				{
+					title: `${result.subject.declaration.name} · ${relationDirection(result)}`,
+					placeHolder: relationSummary(result),
+					matchOnDescription: true,
+					matchOnDetail: true,
+				},
+			);
+			if (selected) {
+				await this.navigate(source, version, offset, generation, selected.match.id);
+			}
+		} catch (error) {
+			this.report(error);
+		}
+	}
+
+	private report(error: unknown): void {
+		if (this.disposed) {
+			return;
+		}
+		if (error instanceof StaleQueryError) {
+			void window.showInformationMessage(error.message);
+			return;
+		}
+		this.output.error('Unable to navigate Go implementation annotations', error);
+		void window.showErrorMessage(errorMessage(error));
+	}
+
+	dispose(): void {
+		this.disposed = true;
+		for (const subscription of this.subscriptions) {
+			subscription.dispose();
+		}
+	}
+}
