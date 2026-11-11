@@ -1,9 +1,11 @@
-import { commands, window, workspace, type Disposable, type LogOutputChannel } from 'vscode';
+import { commands, window, type Disposable, type LogOutputChannel } from 'vscode';
 import { StaleQueryError, type QueryResult } from '../query/model';
 import type { ImplementationQueries } from '../query/service';
 import type { AnnotationDocuments } from './annotationDocuments';
 import { openRelation, retryRelation, showRelations } from './annotationModel';
-import { errorMessage, relationDirection, relationSummary, unverifiedNote } from './labels';
+import { errorMessage } from './labels';
+import { openTarget } from './navigation';
+import { createRelationItems, createRelationPickOptions } from './relationPicker';
 
 export class AnnotationCommands implements Disposable {
 	private readonly subscriptions: Disposable[];
@@ -84,13 +86,10 @@ export class AnnotationCommands implements Disposable {
 			if (!match) {
 				throw new StaleQueryError();
 			}
-			const document = await workspace.openTextDocument(match.location.uri);
-			if (this.disposed || !this.queries.isCurrent(result)) {
-				throw new StaleQueryError();
-			}
-			await window.showTextDocument(document, {
-				selection: match.location.range,
-				preview: true,
+			await openTarget(match.location, () => {
+				if (this.disposed || !this.queries.isCurrent(result)) {
+					throw new StaleQueryError();
+				}
 			});
 		} catch (error) {
 			this.report(error);
@@ -106,18 +105,8 @@ export class AnnotationCommands implements Disposable {
 		try {
 			const result = this.current(source, version, offset, generation);
 			const selected = await window.showQuickPick(
-				result.matches.map((match) => ({
-					label: match.declaration.name,
-					description: workspace.asRelativePath(match.location.uri),
-					detail: `${match.location.uri.fsPath}:${match.location.range.start.line + 1}${unverifiedNote(result, match.id)}`,
-					match,
-				})),
-				{
-					title: `${result.subject.declaration.name} · ${relationDirection(result)}`,
-					placeHolder: relationSummary(result),
-					matchOnDescription: true,
-					matchOnDetail: true,
-				},
+				createRelationItems(result, false),
+				createRelationPickOptions(result),
 			);
 			if (selected) {
 				await this.navigate(source, version, offset, generation, selected.match.id);

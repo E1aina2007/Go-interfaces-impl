@@ -3,7 +3,6 @@ import {
 	CancellationTokenSource,
 	Position,
 	ProgressLocation,
-	ThemeIcon,
 	Uri,
 	commands,
 	l10n,
@@ -11,22 +10,18 @@ import {
 	workspace,
 	type Disposable,
 	type LogOutputChannel,
-	type QuickPickItem,
 } from 'vscode';
 import { toggleTestingFilter } from './filterCommand';
 import type { TypeKind } from '../core/types';
 import { StaleQueryError, type QueryResult } from '../query/model';
 import type { ImplementationQueries } from '../query/service';
-import type { LocatedType } from '../query/resolve';
-import { errorMessage, relationDirection, relationSummary, unverifiedNote } from './labels';
+import { errorMessage, relationSummary } from './labels';
+import { openTarget } from './navigation';
+import { createRelationItems, createRelationPickOptions } from './relationPicker';
 
 export const findInterfaces = 'goInterfaces.findInterfaces';
 export const findStructs = 'goInterfaces.findStructs';
 export const findImplementations = 'goInterfaces.findImplementations';
-
-interface ResultItem extends QuickPickItem {
-	readonly match: LocatedType;
-}
 
 export class ImplementationCommands implements Disposable {
 	private readonly subscriptions: Disposable[];
@@ -129,43 +124,21 @@ export class ImplementationCommands implements Disposable {
 				);
 				return;
 			}
-			const items: ResultItem[] = result.matches.map((match) => ({
-				label: match.declaration.name,
-				iconPath: new ThemeIcon(
-					match.declaration.kind === 'struct' ? 'symbol-struct' : 'symbol-interface',
-				),
-				description: workspace.asRelativePath(match.location.uri),
-				detail: `${match.location.uri.fsPath}:${match.location.range.start.line + 1}${unverifiedNote(result, match.id)}`,
-				match,
-			}));
 			const selected = await window.showQuickPick(
-				items,
-				{
-					title: `${result.subject.declaration.name} · ${relationDirection(result)}`,
-					placeHolder: relationSummary(result),
-					matchOnDescription: true,
-					matchOnDetail: true,
-				},
+				createRelationItems(result, true),
+				createRelationPickOptions(result),
 				request.token,
 			);
-			if (!selected || request.token.isCancellationRequested || this.disposed) {
+			if (!selected) {
 				return;
 			}
-			if (!this.queries.isCurrent(result)) {
-				throw new StaleQueryError();
-			}
-			const document = await workspace.openTextDocument(selected.match.location.uri);
-			// Opening the target can yield to source changes or a newer command before navigation.
-			// 打开目标期间可能发生源码变化或启动新命令，跳转前需要再次检查
-			if (request.token.isCancellationRequested || this.disposed) {
-				return;
-			}
-			if (!this.queries.isCurrent(result)) {
-				throw new StaleQueryError();
-			}
-			await window.showTextDocument(document, {
-				selection: selected.match.location.range,
-				preview: true,
+			await openTarget(selected.match.location, () => {
+				if (request.token.isCancellationRequested || this.disposed) {
+					throw new CancellationError();
+				}
+				if (!this.queries.isCurrent(result)) {
+					throw new StaleQueryError();
+				}
 			});
 		} catch (error) {
 			if (
