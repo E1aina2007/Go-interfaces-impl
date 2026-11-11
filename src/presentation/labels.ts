@@ -2,9 +2,9 @@ import { l10n } from 'vscode';
 import type { QueryResult } from '../query/model';
 
 export function relationDirection(result: QueryResult): string {
-	return result.subject.declaration.kind === 'struct'
-		? l10n.t('Implements')
-		: l10n.t('Implemented by');
+	return result.subject.declaration.kind === 'interface'
+		? l10n.t('Implemented by')
+		: l10n.t('Implements');
 }
 
 export function relationSummary(result: QueryResult): string {

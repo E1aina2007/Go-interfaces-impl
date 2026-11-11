@@ -122,12 +122,21 @@ export function declaration(node: Node): GoDeclaration | undefined {
 			target: type.childForFieldName('name')?.startIndex ?? type.startIndex,
 		};
 	}
-	// Pointers and composite types do not become structs merely because they mention a struct name.
-	// 指针和其他复合类型不会因为引用了 struct 名称就成为 struct
-	if (type.type !== 'struct_type' && type.type !== 'interface_type') {
+	// Defined non-pointer types can declare methods; function signatures alone do not implement interfaces.
+	// 非指针的定义类型可以声明方法，函数签名本身不能构成接口实现
+	const kinds: Readonly<Record<string, TypeKind>> = {
+		struct_type: 'struct',
+		interface_type: 'interface',
+		function_type: 'function',
+		array_type: 'array',
+		slice_type: 'slice',
+		map_type: 'map',
+		channel_type: 'channel',
+	};
+	const kind = kinds[type.type];
+	if (!kind || (base.alias && kind !== 'struct' && kind !== 'interface')) {
 		return { ...base, kind: 'unsupported' };
 	}
-	const kind: TypeKind = type.type === 'struct_type' ? 'struct' : 'interface';
 	const elements = type.namedChildren.filter(
 		(child): child is Node => child !== null && child.type !== 'comment',
 	);

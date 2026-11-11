@@ -1,11 +1,17 @@
 import path from 'node:path';
 import { Location, l10n, workspace, type CancellationToken, type Position, type Uri } from 'vscode';
-import type { TypeKind } from '../core/types';
 import type { GoProvider } from '../language/provider';
 import { belongsToModule, findModule } from '../workspace/module';
 import { TestingFilter } from './filter';
-import { StaleQueryError, type QueryResult } from './model';
-import { GoSyntaxError, TypeResolver, type CapturedFile, type LocatedType } from './resolve';
+import {
+	GoSyntaxError,
+	StaleQueryError,
+	type CapturedFile,
+	type LocatedType,
+	type QueryKind,
+	type QueryResult,
+} from './model';
+import { TypeResolver } from './resolve';
 
 interface QueryContext {
 	readonly provider: GoProvider;
@@ -20,7 +26,7 @@ export async function runQuery(
 	context: QueryContext,
 	uri: Uri,
 	position: Position,
-	expected: TypeKind | 'auto',
+	expected: QueryKind,
 	sourceVersion?: number,
 ): Promise<QueryResult> {
 	const { provider, token, generation, read, check, prepare } = context;
@@ -61,14 +67,15 @@ export async function runQuery(
 	if (!subject) {
 		throw new Error(
 			l10n.t(
-				'Select a named struct or interface. Its type reference must resolve unambiguously within 32 declarations; pointers and generic instances are not supported.',
+				'Select a named type or interface. Its type reference must resolve unambiguously within 32 declarations; pointer types and generic instances are not supported.',
 			),
 		);
 	}
-	if (expected !== 'auto' && subject.declaration.kind !== expected) {
+	const direction = subject.declaration.kind === 'interface' ? 'interface' : 'concrete';
+	if (expected !== 'auto' && direction !== expected) {
 		throw new Error(
-			expected === 'struct'
-				? l10n.t('This command requires a struct type.')
+			expected === 'concrete'
+				? l10n.t('This command requires a concrete named type.')
 				: l10n.t('This command requires an interface type.'),
 		);
 	}
@@ -123,7 +130,7 @@ export async function runQuery(
 		}
 		// Interface-to-interface results are outside this relation scope, not unsupported failures.
 		// 接口之间的结果不属于本插件的关系范围，也不是不支持导致的失败
-		if (match.declaration.kind === subject.declaration.kind) {
+		if ((match.declaration.kind === 'interface') === (direction === 'interface')) {
 			continue;
 		}
 		if (match.declaration.generic || match.declaration.constraint || match.declaration.empty) {

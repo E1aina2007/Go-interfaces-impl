@@ -31,23 +31,28 @@ code examples/acceptance
 go run .
 ```
 
-程序演示形状计算、跨包存储、组合接口和同名方法接口。这一步只用于运行 Go 示例，查看插件标记时无需运行程序。
+程序演示函数适配器、形状计算、跨包存储、组合接口和同名方法接口。这一步只用于运行 Go 示例，查看插件标记时无需运行程序。
 
 ## 场景与预期
 
-| 文件                          | 场景                         | 预期                                                                    |
-| ----------------------------- | ---------------------------- | ----------------------------------------------------------------------- |
-| `shapes/shapes.go`            | 直接声明、值与指针接收者     | `Shape` 显示 `Circle`、`Rect`、`Square`；三个 struct 各自显示 `Shape`   |
-| `shapes/shapes.go`            | 别名与具名类型定义           | `Figure` 等同 `Shape`；`Box` 等同 `Rect`；`Tile` 和 `Plain` 不显示      |
-| `shapes/unsupported.go`       | 空接口、约束、泛型、复合类型 | 全部不显示名称与图标                                                    |
-| `stream/stream.go`            | 嵌入接口与菱形嵌入           | `ReadWriteCloser` 只显示 `File`；`Reader` 显示 `File`、`Pipe`、`Source` |
-| `reset/reset.go`              | 不同声明的同名方法           | `Machine` 显示 `Both`、`Clearer`、`Resetter`                            |
-| `store/memory/memory.go`      | 跨包实现、跨包别名           | `Memory` 显示 `Store`；`Local` 解析为 `Store`                           |
-| `store/memory/memory.go`      | struct 匿名嵌入              | `Embedded` 保留并带 `?` 标记                                            |
-| `store/memory/partial*.go`    | 必要方法仅在测试文件中       | 过滤开启时 `Store` 不显示 `Partial`，关闭后显示                         |
-| `store/memory/fake_test.go`   | 测试文件声明的类型           | 过滤开启时隐藏 `fakeStore`                                              |
-| `store/memory/helper_test.go` | `_test.go` 未导入 testing    | `helperStore` 保留                                                      |
-| `store/memory/quick_test.go`  | 仅导入 `testing/quick`       | `quickStore` 保留                                                       |
+| 文件                          | 场景                         | 预期                                                                                               |
+| ----------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------- |
+| `shapes/shapes.go`            | 直接声明、值与指针接收者     | `Shape` 显示 `Circle`、`Rect`、`Square`；三个 struct 各自显示 `Shape`                              |
+| `shapes/shapes.go`            | 别名与具名类型定义           | `Figure` 等同 `Shape`；`Box` 等同 `Rect`；`Tile` 和 `Plain` 不显示                                 |
+| `shapes/unsupported.go`       | 空接口、约束、泛型、复合类型 | 全部不显示名称与图标                                                                               |
+| `stream/stream.go`            | 嵌入接口与菱形嵌入           | `ReadWriteCloser` 只显示 `File`；`Reader` 显示 `File`、`Pipe`、`Source`                            |
+| `reset/reset.go`              | 不同声明的同名方法           | `Machine` 显示 `Both`、`Clearer`、`Resetter`                                                       |
+| `store/memory/memory.go`      | 跨包实现、跨包别名           | `Memory` 显示 `Store`；`Local` 解析为 `Store`                                                      |
+| `store/memory/memory.go`      | struct 匿名嵌入              | `Embedded` 保留并带 `?` 标记                                                                       |
+| `store/memory/partial*.go`    | 必要方法仅在测试文件中       | 过滤开启时 `Store` 不显示 `Partial`，关闭后显示                                                    |
+| `store/memory/fake_test.go`   | 测试文件声明的类型           | 过滤开启时隐藏 `fakeStore`                                                                         |
+| `store/memory/helper_test.go` | `_test.go` 未导入 testing    | `helperStore` 保留                                                                                 |
+| `store/memory/quick_test.go`  | 仅导入 `testing/quick`       | `quickStore` 保留                                                                                  |
+| `defined/types.go`            | 函数、基础类型与集合类型     | `Text` 开启过滤时显示 11 个实现，包括 `Func`、`Count`、`List`、`Pair`、`Dict`、`Queue`             |
+| `defined/types.go`            | 别名、新定义与指针接收者     | `FuncAlias` 归并到 `Func`；`OwnFunc` 独立展示；`DerivedFunc`、`RawFunc` 不匹配；`PointerFunc` 匹配 |
+| `defined/sources_test.go`     | 函数类型的测试来源           | 开启过滤隐藏 `TestFunc`、`TestMethodFunc`；关闭过滤后 `Text` 显示 13 个实现                        |
+| `defined/uncertain.go`        | 已确认来源与其他未知接收者   | `Runner` 保留 `RunFunc` 且无问号；`Holder`、`TestRunFunc` 保留并标记 `?`                           |
+| `defined/shadow/shadow.go`    | 遮蔽预声明类型名称           | `Local` 沿本地 `int` 解析为函数类型，实现 `Renderable`，不误判为基础类型                           |
 
 `*_test.go` 是人工核对测试来源过滤的声明样例，不包含单元测试函数，也无需执行 `go test`。切换 **Go Interfaces: 切换测试来源过滤** 后，在 `store/store.go` 的 `Store` 上重新查看结果；语言服务是否返回测试变体位置取决于当前加载状态，不能仅凭零项结果认定不存在实现。
 

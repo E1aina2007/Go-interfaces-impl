@@ -1,6 +1,6 @@
 import { ThemeIcon, workspace, type QuickPickItem, type QuickPickOptions } from 'vscode';
 import type { QueryResult } from '../query/model';
-import type { LocatedType } from '../query/resolve';
+import type { LocatedType } from '../query/model';
 import { relationDirection, relationSummary, unverifiedNote } from './labels';
 
 export interface RelationItem extends QuickPickItem {
@@ -16,9 +16,18 @@ export function createRelationItems(result: QueryResult, showIcons: boolean): Re
 			match,
 		};
 		if (showIcons) {
-			item.iconPath = new ThemeIcon(
-				match.declaration.kind === 'struct' ? 'symbol-struct' : 'symbol-interface',
-			);
+			const kind = match.declaration.kind;
+			const icons = {
+				struct: 'symbol-struct',
+				interface: 'symbol-interface',
+				function: 'symbol-method',
+				basic: 'symbol-value',
+				array: 'symbol-array',
+				slice: 'symbol-array',
+				map: 'symbol-object',
+				channel: 'symbol-event',
+			};
+			item.iconPath = new ThemeIcon(icons[kind]);
 		}
 		return item;
 	});

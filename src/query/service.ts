@@ -10,10 +10,8 @@ import {
 	type Uri,
 } from 'vscode';
 import type { GoSyntax } from '../core/syntax';
-import type { TypeKind } from '../core/types';
 import { GoProvider } from '../language/provider';
-import { StaleQueryError, type QueryResult } from './model';
-import type { CapturedFile } from './resolve';
+import { StaleQueryError, type CapturedFile, type QueryKind, type QueryResult } from './model';
 import { runQuery } from './run';
 
 export class ImplementationQueries implements Disposable {
@@ -100,7 +98,7 @@ export class ImplementationQueries implements Disposable {
 	async query(
 		uri: Uri,
 		position: Position,
-		expected: TypeKind | 'auto',
+		expected: QueryKind,
 		caller: CancellationToken,
 		sourceVersion?: number,
 	): Promise<QueryResult> {

@@ -1,12 +1,7 @@
 import { CancellationError, Location, type CancellationToken, type Uri } from 'vscode';
 import type { GoProvider } from '../language/provider';
-import {
-	GoSyntaxError,
-	type CapturedFile,
-	type LocatedMethod,
-	type LocatedType,
-	type TypeResolver,
-} from './resolve';
+import { GoSyntaxError, type CapturedFile, type LocatedMethod, type LocatedType } from './model';
+import type { TypeResolver } from './resolve';
 import { InterfaceMethods } from './interfaces';
 
 const methodQueryLimit = 32;
@@ -57,11 +52,11 @@ export class TestingFilter {
 				hidden++;
 				continue;
 			}
-			const struct = subject.declaration.kind === 'struct' ? subject : candidate;
+			const concrete = subject.declaration.kind !== 'interface' ? subject : candidate;
 			const iface = subject.declaration.kind === 'interface' ? subject : candidate;
 			// A production promoted method may remain valid when a test variant adds a direct method.
 			// 测试变体新增直接方法时，生产代码中的提升方法仍可能成立
-			if (struct.declaration.embedded) {
+			if (concrete.declaration.embedded) {
 				matches.push(candidate);
 				unverified.add(candidate.id);
 				continue;
@@ -71,17 +66,19 @@ export class TestingFilter {
 			let exclude = false;
 			for (const method of requirements.methods) {
 				const origins = await this.origins(method);
-				const sources = origins?.owners.get(struct.id);
-				if (!origins?.classified || !sources) {
-					uncertain = true;
+				const sources = origins?.owners.get(concrete.id);
+				// A retained source proves this method can stay despite other unresolved receivers.
+				// 已确认的可保留来源足以保留该方法，不受其他接收者未解析的影响
+				if (sources?.retained) {
 					continue;
 				}
 				// A known required method can justify exclusion even when other requirements remain unresolved.
 				// 已确认的必要方法可作为过滤依据，即使其他要求仍未解析完成
-				if (sources.filtered && !sources.retained) {
+				if (origins?.classified && sources?.filtered) {
 					exclude = true;
 					break;
 				}
+				uncertain = true;
 			}
 			if (exclude) {
 				hidden++;
@@ -144,8 +141,8 @@ export class TestingFilter {
 			}
 			this.inspected++;
 			const file = await this.read(location.uri);
-			// A method file being edited cannot classify its origin; keep the relation and mark it unverified.
-			// 正在编辑的方法文件无法确认来源，保留关系并标记为来源未确认
+			// An unparseable method file leaves the overall source classification incomplete.
+			// 方法文件存在语法错误时，来源整体分类不完整
 			if (file.syntax.hasErrors) {
 				classified = false;
 				continue;
@@ -172,7 +169,7 @@ export class TestingFilter {
 			const owner = await this.receiver(
 				new Location(location.uri, file.document.positionAt(declaration.receiver)),
 			);
-			if (!owner || owner.declaration.kind !== 'struct' || owner.declaration.generic) {
+			if (!owner || owner.declaration.kind === 'interface' || owner.declaration.generic) {
 				classified = false;
 				continue;
 			}

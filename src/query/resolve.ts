@@ -1,44 +1,8 @@
-import {
-	CancellationError,
-	Location,
-	Range,
-	l10n,
-	type CancellationToken,
-	type TextDocument,
-	type Uri,
-} from 'vscode';
-import type { GoFile, GoType } from '../core/types';
+import { CancellationError, Location, Range, type CancellationToken, type Uri } from 'vscode';
+import type { GoType } from '../core/types';
 import type { GoProvider } from '../language/provider';
 import { canonicalUri, fileKey } from '../workspace/module';
-
-export interface CapturedFile {
-	readonly document: TextDocument;
-	readonly version: number;
-	readonly syntax: GoFile;
-}
-
-export interface LocatedType {
-	readonly id: string;
-	readonly declaration: GoType;
-	readonly location: Location;
-	readonly testing: boolean;
-	readonly methods: readonly LocatedMethod[];
-	readonly interfaces: readonly (Location | null)[];
-}
-
-export interface LocatedMethod {
-	readonly id: string;
-	readonly name: string;
-	readonly location: Location;
-}
-
-// A typed error lets callers degrade only candidates whose files are mid-edit.
-// 使用独立错误类型，便于调用方只对正在编辑的候选文件降级处理
-export class GoSyntaxError extends Error {
-	constructor(readonly uri: Uri) {
-		super(l10n.t('Fix Go syntax errors in {0} before querying.', uri.fsPath));
-	}
-}
+import { GoSyntaxError, type CapturedFile, type LocatedMethod, type LocatedType } from './model';
 
 export class TypeResolver {
 	private readonly resolved = new Map<string, LocatedType>();
@@ -91,9 +55,32 @@ export class TypeResolver {
 			throw new GoSyntaxError(location.uri);
 		}
 		const offset = file.document.offsetAt(location.range.start);
-		const declaration = file.syntax.declarations.find(
+		let declaration = file.syntax.declarations.find(
 			(item) => item.start <= offset && offset < item.end,
 		);
+		// Follow the provider to builtin.go before recognizing scalars, so shadowed names stay semantic.
+		// 先沿语言服务定位 builtin.go 再识别基础类型，避免误判被遮蔽的预声明名称
+		if (
+			declaration?.kind === 'reference' &&
+			/\/src\/builtin\/builtin\.go$/i.test(location.uri.path) &&
+			/^(bool|complex64|complex128|float32|float64|int|int8|int16|int32|int64|uint|uint8|uint16|uint32|uint64|uintptr|string)$/.test(
+				declaration.name,
+			) &&
+			file.document.getText(
+				new Range(
+					file.document.positionAt(declaration.target),
+					file.document.positionAt(declaration.target + declaration.name.length),
+				),
+			) === declaration.name
+		) {
+			declaration = {
+				...declaration,
+				kind: 'basic',
+				empty: false,
+				constraint: false,
+				embedded: false,
+			};
+		}
 		if (!declaration || declaration.kind === 'unsupported') {
 			return undefined;
 		}
@@ -150,8 +137,8 @@ export class TypeResolver {
 				constraint: target.declaration.constraint,
 				embedded: target.declaration.embedded,
 			};
-			// Reuse original interface member positions without inferring method inheritance for structs.
-			// 复用原接口成员的声明位置，不据此推断结构体的方法继承
+			// Reuse interface requirements without inferring method inheritance for concrete types.
+			// 复用接口要求，不据此推断具体类型的方法继承
 			methods = target.methods;
 			interfaces = target.interfaces;
 		} else {

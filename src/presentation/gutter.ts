@@ -169,7 +169,7 @@ export class ImplementationGutter implements Disposable, HoverProvider {
 				}
 				const result = shown.result;
 				const options = { range: item.range };
-				if (result.subject.declaration.kind === 'struct') {
+				if (result.subject.declaration.kind !== 'interface') {
 					implemented.push(options);
 				} else {
 					implementations.push(options);

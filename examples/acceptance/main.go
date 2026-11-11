@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/E1aina2007/Go-interfaces-impl/examples/acceptance/defined"
 	"github.com/E1aina2007/Go-interfaces-impl/examples/acceptance/reset"
 	"github.com/E1aina2007/Go-interfaces-impl/examples/acceptance/shapes"
 	"github.com/E1aina2007/Go-interfaces-impl/examples/acceptance/store"
@@ -13,6 +14,9 @@ import (
 // Use interfaces across packages so the example can also run as a standalone program.
 // 通过接口使用各包，使示例也能作为独立程序运行
 func main() {
+	var text defined.Text = defined.Func(func() string { return "function adapter" })
+	fmt.Printf("Text: %s\n", text.String())
+
 	var shape shapes.Shape = shapes.Rect{W: 3, H: 4}
 	fmt.Printf("Shape: area=%.0f perimeter=%.0f\n", shape.Area(), shape.Perimeter())
 

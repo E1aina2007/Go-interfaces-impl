@@ -1,7 +1,7 @@
 package shapes
 
-// The declarations below are outside the supported query range and should show no annotation.
-// 以下声明超出插件支持的查询范围，预期不显示实现关系标记
+// Unsupported declarations and a methodless slice below should show no annotation.
+// 以下不支持的声明及没有方法的切片类型预期不显示实现关系标记
 
 // Any is an empty interface.
 // Any 是空接口
@@ -25,8 +25,8 @@ type Sizer[T Number] interface {
 	Size() T
 }
 
-// Names is a composite type.
-// Names 是复合类型
+// Names is a supported named slice with no methods or reported interface matches.
+// Names 是受支持的具名切片，但没有方法及语言服务报告的接口匹配
 type Names []string
 
 // RectPointer is a pointer alias.

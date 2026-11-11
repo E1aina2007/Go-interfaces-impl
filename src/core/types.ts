@@ -1,4 +1,5 @@
-export type TypeKind = 'struct' | 'interface';
+export type TypeKind =
+	'struct' | 'interface' | 'function' | 'basic' | 'array' | 'slice' | 'map' | 'channel';
 
 export interface GoIdentifier {
 	readonly name: string;

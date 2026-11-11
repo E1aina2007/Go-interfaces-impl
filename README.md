@@ -1,13 +1,13 @@
 # Go Interfaces Impl
 
-用于查看当前 Go module 内 struct 与 interface 的实现关系，在类型声明行左侧显示方向图标，上方显示可点击跳转的关联类型名称，并保留原生结果列表。
+用于查看当前 Go module 内具名类型与 interface 的实现关系，支持 struct、函数、基础类型、切片、数组、map 和 channel。在类型声明行左侧显示方向图标，上方显示可点击跳转的关联类型名称，并保留原生结果列表。
 
 插件源码使用 TypeScript，开发与打包仅需要 Node.js 和 npm，不包含自有 Go 分析器。`examples/acceptance/` 是独立的 Go module，用于人工体验插件，不参与插件构建或 VSIX 打包。语义查询通过 VS Code 的公开语言接口复用官方 Go 扩展，因此使用查询功能仍需配置该扩展的 Go SDK 与 gopls。
 
 ## 当前功能
 
-- 在 struct 名称处执行 **Go Interfaces: 查看实现的接口** / **Show Implemented Interfaces**
-- 在 interface 名称处执行 **Go Interfaces: 查看实现接口的结构体** / **Show Implementing Structs**
+- 在 struct、具名函数或其他具体类型名称处执行 **Go Interfaces: 查看实现的接口** / **Show Implemented Interfaces**
+- 在 interface 名称处执行 **Go Interfaces: 查看实现接口的类型** / **Show Implementing Types**
 - 使用 **Go Interfaces: 查看类型实现关系** / **Show Type Implementation Relations** 自动选择方向，适用于类型别名与基于具名类型的新定义
 - 自动查询当前编辑器可见的类型声明：struct 上方显示 `Implements (2) | Reader | Closer`，interface 上方显示 `Implemented by (2) | File | Buffer`，点击名称直接跳转
 - 有匹配结果时，在声明行左侧显示方向图标；悬停类型声明名称可查看关联名称、路径与导航链接
@@ -31,9 +31,11 @@ Go 源码、module/work 配置、工作区或 `go`、`gopls`、`goInterfaces` �
 
 公开接口仅返回位置，无法提供完整的方法集、包变体或关系来源。因此结果统一标记为语言服务提供的有限结果，不承诺 module 内实现关系的完整枚举；零项结果也只表示当前没有可展示的位置。gopls 对空方法集和部分泛型、约束类型有能力限制，值与指针形式也不会在本插件中分别显示。[公开命令契约](https://code.visualstudio.com/api/references/commands) · [gopls 实现](https://github.com/golang/tools/blob/master/gopls/internal/golang/implementation.go)
 
-支持直接声明的 struct / interface，以及最终解析到这些类型的非泛型引用链。类型别名 `type Alias = Original` 按目标类型去重、显示与跳转；新定义 `type New Original` 保留 `New` 的身份、位置和 module 归属，只沿引用确定底层种类，其实现关系始终从原查询位置交给语言服务判断，不复用 `Original` 的实现列表。[Go 类型声明规范](https://go.dev/ref/spec#Type_declarations)
+支持直接声明的 struct / interface，以及具名函数、基础类型、切片、数组、map、channel 和最终解析到这些类型的非泛型引用链。类型别名 `type Alias = Original` 按目标类型去重、显示与跳转；新定义 `type New Original` 保留 `New` 的身份、位置和 module 归属，只沿引用确定底层种类，其实现关系始终从原查询位置交给语言服务判断，不复用 `Original` 的实现列表。[Go 类型声明规范](https://go.dev/ref/spec#Type_declarations)
 
-引用链通过公开 definition provider 解析，单次最多跟进 32 个声明，防止循环；有歧义或无法解析的主体明确报错，结果候选计入不支持数量。显式指针、其他复合类型、泛型声明与实例、空接口及可识别的类型集合约束仍不支持。命名类型构成的复杂约束仍依赖语言服务，无法保证精确识别。
+函数适配器需要在具名函数类型上声明方法，例如 `type HandlerFunc func()` 配合 `func (f HandlerFunc) Handle() { f() }`。普通函数或只有相同签名的函数类型不会自动实现接口；值与指针接收者的方法集仍由 Go 语言服务判断。基础类型先通过 definition provider 定位预声明类型，避免将用户自定义的同名 `int` 等误判为基础类型。[Go 方法集规范](https://go.dev/ref/spec#Method_sets)
+
+引用链通过公开 definition provider 解析，单次最多跟进 32 个声明，防止循环；有歧义或无法解析的主体明确报错，结果候选计入不支持数量。显式指针类型及其别名、指向未命名非 struct/interface 字面量的别名、泛型声明与实例、空接口及可识别的类型集合约束仍不支持。命名类型构成的复杂约束仍依赖语言服务，无法保证精确识别。
 
 类型别名与具名引用沿用原有公开 definition 解析规则，解析后按实际类型种类显示关联名称与方向图标。后台只查询可见声明，不扫描整个 module；打开文件、滚动及源码或配置变化后，合并 400 毫秒内的刷新事件并串行执行查询。暂未返回结果时显示查询中入口，查询失败时显示重试入口并记录日志，不把失败显示为零个实现。已查询但没有可展示匹配时不显示名称或图标。
 
@@ -53,11 +55,11 @@ filename ends with _test.go && directly imports testing
 
 导入来自 Tree-sitter 语法树，支持别名、点导入、空白导入、原始字符串及数字转义。注释、普通字符串中的 testing、testing/quick，以及同包其他文件的 import 均不触发过滤。没有直接导入 testing 的 `_test.go` 文件会保留。
 
-对生产文件中的 struct，还会从接口自身及已展开嵌入接口的显式方法发起 implementation 查询，解析返回方法的接收者，并按规范类型身份归组。若 struct 没有匿名嵌入字段、返回的位置均能分类，某个必要方法只报告了符合上述过滤条件的来源，且没有报告可保留来源，则隐藏对应关系。找到可保留来源时会保留该方法依据；没有导入 testing 的测试辅助文件仍可作为保留依据。两种查询方向复用这一规则。[gopls 方法实现查询](https://github.com/golang/tools/blob/master/gopls/internal/golang/implementation.go)
+对生产文件中的具体类型，还会从接口自身及已展开嵌入接口的显式方法发起 implementation 查询，解析返回方法的接收者，并按规范类型身份归组。对于不涉及匿名嵌入字段的类型，先检查当前必要方法是否已有可保留来源；已有来源时，其他接收者解析失败不会使该方法变成未确认。没有导入 testing 的测试辅助文件仍可作为保留依据。没有可保留来源、返回的位置均能分类，且某个必要方法只报告符合上述过滤条件的来源时，隐藏对应关系。两种查询方向复用这一规则。[gopls 方法实现查询](https://github.com/golang/tools/blob/master/gopls/internal/golang/implementation.go)
 
 支持展开非泛型具名接口嵌入，包括跨包引用及别名链，例如 `interface { io.Reader; io.Closer }`。相同方法声明按规范文件位置去重；同名但来自不同声明的方法分别保留，不自行比较方法签名。每次过滤最多尝试解析 64 个嵌入引用，并对当前展开路径使用 32 层保护；仅在当前查询内缓存无未解析分支的展开结果。[Go 嵌入接口规范](https://go.dev/ref/spec#Embedded_interfaces)
 
-包含匿名嵌入字段的 struct 会保留并标记来源未确认，避免测试变体的直接方法掩盖有效的生产提升方法。无法完整展开的接口嵌入、无法解析的接收者、未定位到的方法以及超出预算的来源也保留并标记；有已知必要方法能够按上述规则过滤时，仍会隐藏该关系。结果项详情和列表顶部显示来源未确认状态。展开只收集方法位置，不代表已经追踪嵌入声明、方法签名引用等完整测试来源链。
+包含匿名嵌入字段的 struct 会保留并标记来源未确认，避免测试变体的直接方法掩盖有效的生产提升方法。接口要求未完整展开，或当前类型某个必要方法的来源证据不足时，关系也保留并标记；有已知必要方法能够按上述规则过滤时，仍会隐藏该关系。结果项详情和列表顶部显示来源未确认状态。展开只收集方法位置，不代表已经追踪嵌入声明、方法签名引用等完整测试来源链。
 
 每次查询最多执行 32 个方法实现查询、检查 256 个本 module 方法位置，相同方法位置在当前查询内复用；关闭过滤时不会执行这些额外查询。公开接口仍不提供完整包变体或来源覆盖保证，因此未确认数量为零也不代表已经精确覆盖所有实现关系。当前尚不追踪完整的提升方法来源链。
 
@@ -127,6 +129,8 @@ esbuild.mjs            扩展构建与两份 WASM 资源复制
 
 直接方法来源切片使用现有 `io/io.go`、`io/io_test.go`、`net/http/server.go` 只读核对接口成员、具体方法、接收者、名称偏移与嵌入字段标记；没有调用 Go 工具。公开方法查询、接收者 definition、生产与测试来源混合、预算耗尽和取消等交互仍待宿主验收，没有编写或运行单元测试。
 
+2026-11-11 的具名类型扩展已在 VS Code 1.145.3、官方 Go 扩展 0.58.0 的独立宿主核对函数、基础类型和集合类型双向查询、别名归并、新定义不继承方法、测试来源过滤及来源不完整时的保守处理。`GoogleAI` 的三个接口均无误标问号，`EmbedderClientFunc` 可双向查询；执行实际 CodeLens 导航命令完成 `Func` 与 `Text` 双向跳转。示例通过构建与运行，插件通过格式、lint、类型检查及生产构建。这些样例不代表全部泛型、预算耗尽、包变体或远程场景已验收。
+
 组合接口切片已通过格式、lint、类型检查及打包。只读解析 `io/io.go`、`io/fs/fs.go`、`net/http/fs.go` 和 `cmp/cmp.go`，核对本地与限定名嵌入目标偏移，以及不支持元素的保留标记；该运行只检查语法元数据，未执行公开 definition 链。递归展开、菱形去重、循环、预算耗尽及其过滤效果仍待扩展宿主验收，本轮未编写或运行单元测试，也未调用 Go 工具。
 
 2026-11-05 补齐 `gopls` 配置变更监听，并在查询失效时取消内部等待，保留过期提示与主动取消的区别。该行为仍需在扩展宿主中核对，尤其是 provider 等待期间修改源码、构建标记及环境配置的情况。
@@ -145,11 +149,18 @@ esbuild.mjs            扩展构建与两份 WASM 资源复制
 
 ## 本地打包
 
+使用 Node.js 24.15.0 或更新的 24.x 版本（`.nvmrc` 指定 24）及 npm，在仓库根目录执行：
+
 ```sh
+npm ci
 npm run package
 ```
 
-生成 `go-interfaces-impl-0.0.8.vsix`，通过 **Extensions: Install from VSIX...** 安装。允许列表只包含入口 JS、两份 WASM、四份原创 SVG 图标（两个方向各含深浅主题版本）、清单、清单翻译与运行期翻译，以及包含第三方许可说明的 README，不包含 Go 可执行文件、源码、开发依赖或 source map。
+`npm ci` 按锁文件安装依赖；已安装且锁文件未变化时可直接运行打包命令。`npm run package` 自动通过 `vscode:prepublish` 执行格式、lint、类型检查和生产构建，无需提前单独执行 `npm run build`，也无需全局安装 vsce 或配置 Go SDK。
+
+生成 `go-interfaces-impl-0.0.9.vsix`，文件名版本来自 `package.json`。通过 **Extensions: Install from VSIX...** 安装，或在仓库根目录执行 `code --install-extension ./go-interfaces-impl-0.0.9.vsix`。使用插件查询时仍需配置官方 Go 扩展及其 SDK、gopls。
+
+可先执行 `npm run package:files` 查看打包清单，或使用 `npm run package -- --out ./custom.vsix` 指定输出路径。允许列表只包含入口 JS、两份 WASM、四份原创 SVG 图标（两个方向各含深浅主题版本）、清单、清单翻译与运行期翻译，以及包含第三方许可说明的 README，不包含 Go 可执行文件、源码、开发依赖或 source map。
 
 当前未设置 Marketplace publisher，许可证保留为 `UNLICENSED`；本地打包使用 `--skip-license`。正式发布前仍需确定发布者与许可证。
 

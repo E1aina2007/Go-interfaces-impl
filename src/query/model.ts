@@ -1,6 +1,37 @@
-import { l10n } from 'vscode';
+import { l10n, type Location, type TextDocument, type Uri } from 'vscode';
+import type { GoFile, GoType } from '../core/types';
 import type { GoModule } from '../workspace/module';
-import type { LocatedType } from './resolve';
+
+export type QueryKind = 'concrete' | 'interface' | 'auto';
+
+export interface CapturedFile {
+	readonly document: TextDocument;
+	readonly version: number;
+	readonly syntax: GoFile;
+}
+
+export interface LocatedType {
+	readonly id: string;
+	readonly declaration: GoType;
+	readonly location: Location;
+	readonly testing: boolean;
+	readonly methods: readonly LocatedMethod[];
+	readonly interfaces: readonly (Location | null)[];
+}
+
+export interface LocatedMethod {
+	readonly id: string;
+	readonly name: string;
+	readonly location: Location;
+}
+
+// A typed error lets callers degrade only candidates whose files are mid-edit.
+// 使用独立错误类型，便于调用方只对正在编辑的候选文件降级处理
+export class GoSyntaxError extends Error {
+	constructor(readonly uri: Uri) {
+		super(l10n.t('Fix Go syntax errors in {0} before querying.', uri.fsPath));
+	}
+}
 
 export interface QueryResult {
 	readonly coverage: 'provider-limited';

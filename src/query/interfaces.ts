@@ -1,5 +1,6 @@
 import { CancellationError, type CancellationToken, type Location } from 'vscode';
-import { GoSyntaxError, type LocatedMethod, type LocatedType, type TypeResolver } from './resolve';
+import { GoSyntaxError, type LocatedMethod, type LocatedType } from './model';
+import type { TypeResolver } from './resolve';
 
 const referenceLimit = 64;
 const depthLimit = 32;

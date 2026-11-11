@@ -12,8 +12,7 @@ import {
 	type LogOutputChannel,
 } from 'vscode';
 import { toggleTestingFilter } from './filterCommand';
-import type { TypeKind } from '../core/types';
-import { StaleQueryError, type QueryResult } from '../query/model';
+import { StaleQueryError, type QueryKind, type QueryResult } from '../query/model';
 import type { ImplementationQueries } from '../query/service';
 import { errorMessage, relationSummary } from './labels';
 import { openTarget } from './navigation';
@@ -41,7 +40,7 @@ export class ImplementationCommands implements Disposable {
 			commands.registerCommand(
 				findInterfaces,
 				(uri?: Uri, position?: Position, version?: number): Promise<void> =>
-					this.run('struct', uri, position, version),
+					this.run('concrete', uri, position, version),
 			),
 			commands.registerCommand(
 				findStructs,
@@ -55,7 +54,7 @@ export class ImplementationCommands implements Disposable {
 	}
 
 	private async run(
-		kind: TypeKind | 'auto',
+		kind: QueryKind,
 		uri?: Uri,
 		position?: Position,
 		version?: number,
@@ -82,10 +81,10 @@ export class ImplementationCommands implements Disposable {
 				(document) => document.uri.toString() === resource.toString(),
 			)?.version;
 		let title = l10n.t('Go Interfaces: Finding implementation relations');
-		if (kind === 'struct') {
+		if (kind === 'concrete') {
 			title = l10n.t('Go Interfaces: Finding implemented interfaces');
 		} else if (kind === 'interface') {
-			title = l10n.t('Go Interfaces: Finding implementing structs');
+			title = l10n.t('Go Interfaces: Finding implementing types');
 		}
 		try {
 			const result = await window.withProgress(

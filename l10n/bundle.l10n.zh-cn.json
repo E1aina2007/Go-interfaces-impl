@@ -10,7 +10,7 @@
   "Open a Go document and select a type name.": "请打开 Go 文件并选中类型名称。",
   "Go Interfaces: Finding implementation relations": "Go Interfaces：正在查询实现关系",
   "Go Interfaces: Finding implemented interfaces": "Go Interfaces：正在查询实现的接口",
-  "Go Interfaces: Finding implementing structs": "Go Interfaces：正在查询实现接口的结构体",
+  "Go Interfaces: Finding implementing types": "Go Interfaces：正在查询实现接口的类型",
   "The Go language service returned no displayable matches in this module. {0}.": "Go 语言服务在当前 module 中没有返回可展示的匹配。{0}。",
   "Open a Go file in a workspace to change its test filter.": "请先打开工作区中的 Go 文件，再切换测试来源过滤。",
   "Go Interfaces: Test source filter disabled.": "Go Interfaces：已关闭测试来源过滤。",
@@ -33,8 +33,8 @@
   "Save Go module and workspace configuration files before querying.": "请先保存 Go module 与工作区配置文件再查询。",
   "Select a Go source document.": "请选择 Go 源码文件。",
   "No go.mod was found for the selected file.": "所选文件没有找到对应的 go.mod。",
-  "Select a named struct or interface. Its type reference must resolve unambiguously within 32 declarations; pointers and generic instances are not supported.": "请选择具名 struct 或 interface。其类型引用需在 32 个声明内无歧义地解析；不支持指针和泛型实例。",
-  "This command requires a struct type.": "该命令需要 struct 类型。",
+  "Select a named type or interface. Its type reference must resolve unambiguously within 32 declarations; pointer types and generic instances are not supported.": "请选择具名类型或接口。其类型引用需在 32 个声明内无歧义地解析；不支持指针类型和泛型实例。",
+  "This command requires a concrete named type.": "该命令需要具体的具名类型。",
   "This command requires an interface type.": "该命令需要 interface 类型。",
   "Generic declarations, constraint interfaces and empty interfaces are not supported by this query path.": "该查询路径不支持泛型声明、约束接口和空接口。"
 }
