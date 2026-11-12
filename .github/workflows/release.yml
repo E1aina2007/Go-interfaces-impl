@@ -1,0 +1,50 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      # Publish the checked artifact without rebuilding with a write-enabled token.
+      # 直接发布已检查的产物，避免携带写入令牌重新执行构建
+      - name: Download checked VSIX
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: vsix-ubuntu-latest
+          path: release
+      - name: Create release with VSIX and checksum
+        shell: bash
+        working-directory: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          shopt -s nullglob
+          packages=(*.vsix)
+          expected="go-interfaces-impl-${RELEASE_TAG#v}.vsix"
+          if [[ ${#packages[@]} -ne 1 || "${packages[0]}" != "$expected" ]]; then
+            echo "Expected exactly one package: $expected" >&2
+            exit 1
+          fi
+          sha256sum "$expected" > SHA256SUMS
+          gh release create "$RELEASE_TAG" "$expected" SHA256SUMS \
+            --verify-tag --title "$RELEASE_TAG" --generate-notes
