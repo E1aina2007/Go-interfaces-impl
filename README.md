@@ -58,7 +58,13 @@ Go 语言优秀的接口隐式实现设计，让其能够在代码中被灵活�
 
 查询以当前文件最近的 `go.mod` 为边界，`go.work` 中的其他 module 不纳入结果。虚拟工作区与未信任工作区不启用本扩展。
 
+## 发布
+
+发布者 ID 为 `E1aina2007`，自动发布配置见 [Release 工作流](.github/workflows/release.yml)，版本变化见 [更新记录](CHANGELOG.md)。
+
 ## 第三方许可声明
+
+项目图标参考 [Renee French 设计的 Go Gopher](https://go.dev/blog/gopher)，原角色采用 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) 许可。本图使用 AI 重新绘制，加入接口括号与实现关系连线。
 
 随扩展分发的 Tree-sitter 运行时与 Go 语法资源适用以下许可。
 
@@ -138,3 +144,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 </details>
+
+## 许可证
+
+本项目遵循 [MIT](LICENSE) 许可证。

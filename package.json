@@ -1,11 +1,12 @@
 {
   "name": "go-interfaces-impl",
   "displayName": "Go Interfaces",
+  "publisher": "E1aina2007",
   "description": "%extension.description%",
   "icon": "media/icon.png",
   "version": "0.0.9",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/E1aina2007/Go-interfaces-impl.git"
@@ -141,7 +142,7 @@
     "watch:esbuild": "node esbuild.mjs --watch",
     "watch:types": "tsc --noEmit --watch --preserveWatchOutput",
     "vscode:prepublish": "npm run build",
-    "package": "vsce package --no-dependencies --skip-license",
+    "package": "vsce package --no-dependencies",
     "package:files": "vsce ls --no-dependencies"
   },
   "devDependencies": {
