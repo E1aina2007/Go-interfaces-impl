@@ -4,15 +4,11 @@ package shapes
 
 import "math"
 
-// Shape is expected to show Circle, Rect and Square.
-// Shape 应显示 Circle、Rect 和 Square 三个实现者
 type Shape interface {
 	Area() float64
 	Perimeter() float64
 }
 
-// Rect implements Shape with value receivers.
-// Rect 使用值接收者实现 Shape
 type Rect struct {
 	W, H float64
 }
@@ -21,8 +17,6 @@ func (r Rect) Area() float64 { return r.W * r.H }
 
 func (r Rect) Perimeter() float64 { return 2 * (r.W + r.H) }
 
-// Circle implements Shape with pointer receivers.
-// Circle 使用指针接收者实现 Shape
 type Circle struct {
 	R float64
 }

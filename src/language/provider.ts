@@ -34,8 +34,8 @@ async function wait<T>(start: () => Thenable<T>, token: CancellationToken): Prom
 		);
 	});
 	try {
-		// Public provider commands cannot cancel the underlying request; discard late responses instead.
-		// 公开 provider 命令无法取消底层请求，因此取消后丢弃迟到的响应
+		// Stop waiting for provider results after cancellation or timeout.
+		// 取消或超时后停止等待语言服务结果
 		return await Promise.race([start(), stopped]);
 	} finally {
 		subscription?.dispose();

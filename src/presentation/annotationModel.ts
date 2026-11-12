@@ -16,8 +16,8 @@ export type AnnotationState =
 	| { readonly kind: 'failed'; readonly message: string };
 
 export interface Annotation {
-	// Declaration name plus its occurrence, stable across edits that only move offsets.
-	// 声明名称加出现序号，在仅移动偏移的编辑前后保持稳定
+	// Stable key for each declaration name and occurrence.
+	// 每个声明名称及其出现序号的稳定键
 	readonly key: string;
 	readonly start: number;
 	readonly range: Range;
@@ -28,13 +28,13 @@ export interface DocumentAnnotations {
 	readonly document: TextDocument;
 	readonly version: number;
 	readonly items: readonly Annotation[];
-	// Syntax errors block new queries; previous results stay visible until the file parses again.
-	// 语法错误时不发起新查询，旧结果保持展示直到文件重新可解析
+	// Track whether syntax errors block document queries.
+	// 标记语法错误是否阻止文档查询
 	readonly blocked: boolean;
 }
 
-// A loaded document still has declaration-level states; this view does not grant navigation.
-// 文档加载后仍有声明级状态，展示视图不代表允许导航
+// Describe the loaded, retained, or empty annotation view.
+// 描述已加载、保留或空的标注视图
 export type DocumentView =
 	| { readonly kind: 'loaded'; readonly state: DocumentAnnotations }
 	| { readonly kind: 'retained' }
@@ -133,8 +133,8 @@ export function createAnnotations(
 	return { document, version, items, blocked: file.hasErrors };
 }
 
-// Carry displayed results across invalidation so names and icons do not flicker while typing.
-// 失效时保留已展示的结果，避免输入过程中名称和图标反复闪烁
+// Retain displayed results while a new query runs.
+// 新查询运行期间保留已展示的结果
 export function retainAnnotations(state: DocumentAnnotations): Map<string, QueryResult> {
 	const results = new Map<string, QueryResult>();
 	for (const item of state.items) {

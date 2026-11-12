@@ -16,8 +16,8 @@ export function activate(context: ExtensionContext): void {
 	const lenses = new ImplementationLenses(annotations);
 	const gutter = new ImplementationGutter(annotations, context.extensionUri);
 
-	// Let the extension host dispose of the channel and commands when the extension unloads.
-	// 将日志通道和命令交给扩展宿主，在插件卸载时统一释放
+	// Register resources for disposal by the extension host.
+	// 注册由扩展宿主释放的资源
 	context.subscriptions.push(output);
 	context.subscriptions.push(
 		actions,

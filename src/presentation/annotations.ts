@@ -76,8 +76,8 @@ export class ImplementationAnnotations implements Disposable {
 		for (const subscription of this.subscriptions) {
 			subscription.dispose();
 		}
-		// Stop callers before releasing their shared document state and notification channel.
-		// 先停止调用方，再释放共用文档状态和通知通道
+		// Dispose dependent services before shared state and notifications.
+		// 先释放依赖服务，再释放共用状态和通知
 		this.actions.dispose();
 		this.refresh.dispose();
 		this.documents.dispose();

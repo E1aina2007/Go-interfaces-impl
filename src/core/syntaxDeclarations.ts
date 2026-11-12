@@ -6,8 +6,8 @@ export function importsTesting(literal: Node): boolean {
 	if (literal.type === 'raw_string_literal') {
 		return text.slice(1, -1).replaceAll('\r', '') === 'testing';
 	}
-	// Decode numeric escapes only for this exact ASCII import; all other escapes rule out "testing".
-	// 仅为精确的 ASCII 导入路径解码数字转义，其他转义均不可能组成 testing
+	// Decode the import path before checking for testing.
+	// 检查 testing 导入前先解码路径
 	const decoded = text
 		.slice(1, -1)
 		.replace(
@@ -21,8 +21,8 @@ export function importsTesting(literal: Node): boolean {
 	return decoded === 'testing';
 }
 
-// Named embedded types need semantic resolution; reject only constraints visible in the syntax.
-// 命名嵌入类型需要语义解析，因此这里只拒绝语法可直接识别的约束
+// Detect constraints recognized from the syntax tree.
+// 检测语法树中可识别的约束接口
 function isConstraint(type: Node): boolean {
 	for (const element of type.namedChildren) {
 		if (element?.type !== 'type_elem') {
@@ -87,8 +87,8 @@ export function method(node: Node): GoMethod | undefined {
 	};
 }
 
-// A named field's inner embeddings do not promote methods to the outer struct.
-// 具名字段内部的嵌入不会向外层结构体提升方法
+// Detect embedded fields or interface elements.
+// 检测嵌入字段或接口元素
 function hasEmbedding(type: Node): boolean {
 	if (type.type === 'interface_type') {
 		return type.namedChildren.some((member) => member?.type === 'type_elem');
@@ -122,8 +122,8 @@ export function declaration(node: Node): GoDeclaration | undefined {
 			target: type.childForFieldName('name')?.startIndex ?? type.startIndex,
 		};
 	}
-	// Defined non-pointer types can declare methods; function signatures alone do not implement interfaces.
-	// 非指针的定义类型可以声明方法，函数签名本身不能构成接口实现
+	// Classify supported underlying type forms.
+	// 分类支持的底层类型形式
 	const kinds: Readonly<Record<string, TypeKind>> = {
 		struct_type: 'struct',
 		interface_type: 'interface',

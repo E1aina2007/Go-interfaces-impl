@@ -40,8 +40,8 @@ export class GoSyntax {
 				}
 				if (item?.kind === 'interface') {
 					const type = unparenthesized(node.childForFieldName('type'));
-					// Only direct interface members are requirements here; nested parameter types are separate interfaces.
-					// 此处仅记录接口的直接成员，参数中的嵌套接口属于其他类型
+					// Read the interface's direct members.
+					// 读取接口的直接成员
 					for (const member of type?.namedChildren ?? []) {
 						if (member?.type === 'type_elem') {
 							const terms = member.namedChildren.filter(
@@ -58,8 +58,8 @@ export class GoSyntax {
 									reference.childForFieldName('name')?.startIndex ??
 									reference.startIndex;
 							}
-							// Preserve unsupported elements so an incomplete method set never looks fully resolved.
-							// 保留不支持的元素，避免把不完整的方法集当作已完整解析
+							// Record each type element and its target position when available.
+							// 记录每个类型元素及可用的目标位置
 							interfaceEmbeddings.push({ owner: item.start, target });
 						}
 						const name =
@@ -97,8 +97,8 @@ export class GoSyntax {
 				hasErrors: tree.rootNode.hasError,
 			};
 		} finally {
-			// Keep plain offsets instead of retaining WASM nodes after their owning tree is released.
-			// 仅保留普通偏移量，在所属语法树释放后不再持有 WASM 节点
+			// Store offsets before releasing the syntax tree.
+			// 释放语法树前保存偏移量
 			tree.delete();
 		}
 	}

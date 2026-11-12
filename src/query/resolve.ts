@@ -24,8 +24,8 @@ export class TypeResolver {
 			return this.resolve(location);
 		}
 		let result: LocatedType | undefined;
-		// Multiple definition locations are usable only when they resolve to the same canonical type.
-		// 多个定义位置只有归并为同一规范类型时才可使用，避免任意选取一个目标
+		// Merge definitions only when they resolve to the same canonical type.
+		// 仅合并解析到同一规范类型的定义
 		for (const definition of await this.provider.definitions(
 			location.uri,
 			location.range.start,
@@ -58,8 +58,8 @@ export class TypeResolver {
 		let declaration = file.syntax.declarations.find(
 			(item) => item.start <= offset && offset < item.end,
 		);
-		// Follow the provider to builtin.go before recognizing scalars, so shadowed names stay semantic.
-		// 先沿语言服务定位 builtin.go 再识别基础类型，避免误判被遮蔽的预声明名称
+		// Resolve predeclared types through builtin.go.
+		// 通过 builtin.go 解析预声明类型
 		if (
 			declaration?.kind === 'reference' &&
 			/\/src\/builtin\/builtin\.go$/i.test(location.uri.path) &&
@@ -84,8 +84,8 @@ export class TypeResolver {
 		if (!declaration || declaration.kind === 'unsupported') {
 			return undefined;
 		}
-		// Physical file identity merges symlink paths while keeping distinct declarations separate.
-		// 物理文件身份用于归并符号链接路径，同时保留不同声明之间的区别
+		// Identify types by canonical file path and declaration offset.
+		// 使用规范文件路径和声明偏移量标识类型
 		const fileId = fileKey(await canonicalUri(location.uri.toString()));
 		const id = `${fileId}:${declaration.start}`;
 		if (visited.has(id) || visited.size >= 32) {
@@ -120,8 +120,8 @@ export class TypeResolver {
 			if (!target) {
 				return undefined;
 			}
-			// Aliases share their target identity; a type definition keeps its own methods and identity.
-			// 别名与目标共享身份，类型定义保留自身身份并由语言服务判断自身方法集
+			// Resolve aliases to their target type.
+			// 将别名解析为目标类型
 			if (declaration.alias) {
 				this.resolved.set(id, target);
 				return target;
@@ -137,8 +137,8 @@ export class TypeResolver {
 				constraint: target.declaration.constraint,
 				embedded: target.declaration.embedded,
 			};
-			// Reuse interface requirements without inferring method inheritance for concrete types.
-			// 复用接口要求，不据此推断具体类型的方法继承
+			// Use the target's methods and interfaces for this reference.
+			// 使用该引用目标的方法和接口
 			methods = target.methods;
 			interfaces = target.interfaces;
 		} else {

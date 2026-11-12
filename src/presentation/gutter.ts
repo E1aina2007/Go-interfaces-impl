@@ -34,11 +34,11 @@ function appendLink(
 	command: string,
 	args: readonly unknown[],
 ): void {
-	// Escape source names and encode arguments; only our guarded navigation commands are trusted.
-	// 转义源码名称并编码参数，仅信任带有效性检查的导航命令
+	// Build a command link with an escaped label and encoded arguments.
+	// 使用转义后的标签和编码参数构建命令链接
 	const escaped = new MarkdownString().appendText(label).value;
-	// Preserve escaped file URIs and type IDs when VS Code decodes command arguments.
-	// 保留文件 URI 与类型身份中的转义字符，避免 VS Code 解码命令参数时将其改写
+	// Preserve argument encoding when VS Code parses the command URI.
+	// VS Code 解析命令 URI 时保留参数编码
 	const uri = Uri.from({
 		scheme: 'command',
 		path: command,
@@ -57,8 +57,8 @@ export class ImplementationGutter implements Disposable, HoverProvider {
 		private readonly annotations: ImplementationAnnotations,
 		extensionUri: Uri,
 	) {
-		// Keep the original 16px badge at its natural size and let VS Code select its theme variant.
-		// 原创 16 像素徽标按原始大小显示，由 VS Code 选择适合当前主题的版本
+		// Use theme-specific gutter icons.
+		// 使用适配主题的行号槽图标
 		this.implementsIcon = window.createTextEditorDecorationType({
 			gutterIconPath: Uri.joinPath(extensionUri, 'media', 'implements.svg'),
 			dark: { gutterIconPath: Uri.joinPath(extensionUri, 'media', 'implements-dark.svg') },
@@ -73,13 +73,13 @@ export class ImplementationGutter implements Disposable, HoverProvider {
 			gutterIconSize: 'auto',
 			rangeBehavior: DecorationRangeBehavior.ClosedClosed,
 		});
-		// Resolve hovers on demand so retained icons cannot carry stale command links.
-		// 按需生成悬停内容，避免保留的图标装饰携带过期命令链接
+		// Build hover links from current annotation results.
+		// 根据当前标注结果构建悬停链接
 		this.hover = languages.registerHoverProvider({ language: 'go', scheme: 'file' }, this);
 		this.changed = annotations.onDidChange((event) => {
 			const active = window.activeTextEditor;
-			// VS Code caches open hovers; dismiss the old popup when its results invalidate.
-			// VS Code 会缓存已打开的悬停，结果失效时先关闭旧弹层
+			// Hide open hovers when results are invalidated.
+			// 结果失效时关闭已打开的悬停
 			if (
 				event.kind === 'invalidated' &&
 				active &&
@@ -158,8 +158,8 @@ export class ImplementationGutter implements Disposable, HoverProvider {
 		const implementations: DecorationOptions[] = [];
 		const view = this.annotations.view(editor.document);
 		const enabled = annotationsEnabled(editor.document, 'gutterIcons');
-		// Preserve VS Code's tracked icon ranges until declarations are read again.
-		// 声明重新读取前保留由 VS Code 跟随编辑的图标范围
+		// Keep retained icon ranges until declarations reload.
+		// 声明重新加载前保留图标范围
 		if (view.kind === 'retained' && enabled) {
 			return;
 		}

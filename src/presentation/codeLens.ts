@@ -23,8 +23,8 @@ import {
 import { findImplementations } from './commands';
 import { relationDirection, relationSummary } from './labels';
 
-// Stale results keep their layout but drop commands, so outdated targets cannot be opened.
-// 过期结果保留原有布局但不绑定命令，避免打开已经失效的目标
+// Show stale results without navigation commands.
+// 展示过期结果时不提供导航命令
 function relationLenses(
 	range: Range,
 	result: QueryResult,
@@ -32,8 +32,8 @@ function relationLenses(
 ): CodeLens[] {
 	const summary = relationSummary(result);
 	const refreshing = l10n.t('Refreshing implementation relations after a change…');
-	// Keep the full-list action first so narrow editors do not hide it behind long type names.
-	// 将完整列表入口放在最前面，避免窄编辑器中的长类型名称遮住该入口
+	// Place the full-list action first.
+	// 将完整列表入口放在最前面
 	const lenses = [
 		new CodeLens(range, {
 			title: `${relationDirection(result)} (${result.matches.length})`,
@@ -108,8 +108,8 @@ export class ImplementationLenses implements CodeLensProvider {
 				}
 				continue;
 			}
-			// A file with syntax errors only keeps earlier results; it never starts new queries.
-			// 存在语法错误的文件只保留先前结果，不发起新的查询
+			// Keep earlier results while syntax errors block new queries.
+			// 语法错误阻止新查询时保留先前结果
 			if (state.blocked) {
 				continue;
 			}

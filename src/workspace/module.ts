@@ -63,8 +63,8 @@ export async function belongsToModule(uri: string, module: GoModule): Promise<bo
 	if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
 		return false;
 	}
-	// The nearest go.mod also excludes nested modules and vendored source trees.
-	// 同时核对最近的 go.mod，排除嵌套模块与 vendor 目录中的源码
+	// Check module ownership and exclude vendor source files.
+	// 核对模块归属并排除 vendor 源码
 	if (relative.split(path.sep).includes('vendor')) {
 		return false;
 	}
