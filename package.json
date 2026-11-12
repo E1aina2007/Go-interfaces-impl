@@ -2,7 +2,8 @@
   "name": "go-interfaces-impl",
   "displayName": "Go Interfaces",
   "description": "%extension.description%",
-  "version": "0.0.1",
+  "icon": "media/icon.png",
+  "version": "0.0.9",
   "private": true,
   "license": "UNLICENSED",
   "repository": {
@@ -28,12 +29,99 @@
   "extensionKind": [
     "workspace"
   ],
+  "extensionDependencies": [
+    "golang.go"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false
+    },
+    "virtualWorkspaces": {
+      "supported": false
+    }
+  },
   "activationEvents": [
     "onLanguage:go"
   ],
   "main": "./dist/extension.js",
+  "l10n": "./l10n",
   "contributes": {
+    "configuration": {
+      "title": "Go Interfaces",
+      "properties": {
+        "goInterfaces.hideTestingImplementations": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "description": "%configuration.hideTestingImplementations%"
+        },
+        "goInterfaces.codeLens": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "description": "%configuration.codeLens%"
+        },
+        "goInterfaces.gutterIcons": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "description": "%configuration.gutterIcons%"
+        }
+      }
+    },
+    "menus": {
+      "editor/context": [
+        {
+          "command": "goInterfaces.findInterfaces",
+          "when": "editorLangId == go",
+          "group": "navigation@20"
+        },
+        {
+          "command": "goInterfaces.findStructs",
+          "when": "editorLangId == go",
+          "group": "navigation@21"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "goInterfaces.findImplementations",
+          "when": "editorLangId == go"
+        },
+        {
+          "command": "goInterfaces.findInterfaces",
+          "when": "editorLangId == go"
+        },
+        {
+          "command": "goInterfaces.findStructs",
+          "when": "editorLangId == go"
+        },
+        {
+          "command": "goInterfaces.toggleTestingFilter",
+          "when": "editorLangId == go"
+        }
+      ]
+    },
     "commands": [
+      {
+        "command": "goInterfaces.findImplementations",
+        "title": "%command.findImplementations%",
+        "category": "Go Interfaces"
+      },
+      {
+        "command": "goInterfaces.findInterfaces",
+        "title": "%command.findInterfaces%",
+        "category": "Go Interfaces"
+      },
+      {
+        "command": "goInterfaces.findStructs",
+        "title": "%command.findStructs%",
+        "category": "Go Interfaces"
+      },
+      {
+        "command": "goInterfaces.toggleTestingFilter",
+        "title": "%command.toggleTestingFilter%",
+        "category": "Go Interfaces"
+      },
       {
         "command": "goInterfaces.showOutput",
         "title": "%command.showOutput%",
@@ -69,5 +157,8 @@
     "prettier": "^3.9.10",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.72.1"
+  },
+  "dependencies": {
+    "@vscode/tree-sitter-wasm": "^0.3.1"
   }
 }

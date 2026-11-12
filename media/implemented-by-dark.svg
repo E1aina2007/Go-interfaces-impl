@@ -1,0 +1,7 @@
+<!-- Original interface badge and navigation connector for Go Interfaces. -->
+<!-- Go Interfaces 原创接口徽标与导航连线 -->
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
+  <rect x="1.25" y="3.25" width="9.5" height="9.5" rx="2.25" fill="#25384D" stroke="#82AFDF" stroke-width="1.25"/>
+  <path d="M4.75 6H4v4h.75M7.25 6H8v4h-.75" stroke="#BED8F4" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M10.75 6.75h.5a1.5 1.5 0 0 1 1.5 1.5v6M10.75 12.25l2 2 2-2" stroke="#BBC8D7" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -4,3 +4,7 @@
 !package.nls.zh-cn.json
 !README.md
 !dist/extension.js
+!dist/wasm/*.wasm
+!media/*.svg
+!media/icon.png
+!l10n/*.json

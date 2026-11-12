@@ -1,95 +1,140 @@
 # Go Interfaces Impl
 
-用于查看 Go module 内接口与结构体实现关系的 VS Code 插件，视觉呈现与交互计划参考 GoLand。
+<p align="center">
+  <img src="media/icon.png" width="160" height="160" alt="Go Gopher 抱着接口关系徽标" />
+</p>
 
-当前版本完成了扩展基础框架：按需激活、命令注册、日志、开发调试、静态检查和 VSIX 打包。接口分析与导航尚未实现。
+面向 Go 语言的 VS Code 插件，用于查看当前 Go module 内具名类型与 interface 的实现关系。视觉呈现与交互参考 GoLand，在类型声明旁展示关联类型，并支持直接跳转。
 
-业务与代码方案保存在本地 `docs/` 目录，不纳入版本控制。接口分析、导航和过滤功能将按模块逐步实现。
+> _此项目源代码完全使用AI生成。_
 
-## 计划中的功能
+## 为什么做这个？
 
-- 从 struct 查看当前 Go module 内它实现的所有接口
-- 从接口查看当前 Go module 内实现它的所有 struct
-- 支持过滤位于引入 `testing` 包的单元测试代码中的接口实现
+Go 语言优秀的接口隐式实现设计，让其能够在代码中被灵活地使用。但是隐式实现也带来了一定的可读性下降，对初学者来说可能不是特别友好。恰逢 AI 与 Vibe Coding 的蓬勃发展，本插件因此诞生。
 
-## 本地开发
+## 主要功能
 
-开发环境使用 Node.js 24.15 或更新的 24.x 版本、npm 和 VS Code 1.110 或更新版本。`.nvmrc` 指向 Node.js 24；`package-lock.json` 固定依赖版本。
+- **双向查询**：查看具体类型实现的接口，或查看接口的实现类型，支持 struct、具名函数、基础类型、切片、数组、map 和 channel
+- **行内展示**：在类型声明上方显示可点击的关联名称，在左侧显示实现方向图标，并通过悬停查看关系与导航链接
+- **结果导航**：点击关联名称直接跳转，也可打开完整结果列表进行选择
+- **module 范围**：将结果限定在当前文件所属的 Go module 内，排除嵌套 module、vendor 和依赖目录
+- **测试来源过滤**：按类型声明与直接方法来源过滤测试实现，对来源不完整的关系保留未确认标记
+- **界面适配**：支持英文、简体中文，以及深浅色主题
 
-```sh
-npm ci
-```
+## 使用要求
 
-使用 VS Code 打开仓库，按 **F5** 选择 `Run Extension`。调试配置会先执行类型检查和开发构建，再启动 Extension Development Host。
+- VS Code 1.110 或更新版本
+- 安装[官方 Go 扩展](https://github.com/golang/vscode-go)，并配置其所需的 Go SDK 与 gopls
+- 在受信任的本地文件系统工作区中打开包含 `go.mod` 的 Go 项目
 
-在新窗口的命令面板中执行 **Go Interfaces: Show Output**；中文界面对应 **Go Interfaces: 查看输出**。输出面板中应能看到 `Extension activated`。打开 Go 文件也会触发插件激活。
+插件使用 TypeScript 编写，通过 VS Code 公开语言接口复用官方 Go 扩展，不包含自有 Go 分析器，也不自行启动或管理 gopls。Go SDK 与语言服务由官方 Go 扩展负责。
 
-需要持续构建时，在终端执行：
+## 使用方式
 
-```sh
-npm run watch
-```
+打开 Go 文件后，插件自动查询可见类型声明的实现关系。具体类型上方显示 `Implements`，接口上方显示 `Implemented by`；点击关联名称可跳转，点击方向与数量可打开完整列表。名称后的 `?` 表示测试来源未完全确认。
 
-监听模式并行运行 esbuild 与 TypeScript 检查。修改后需要重启调试会话或在开发宿主中执行 `Developer: Reload Window` 才会加载新的扩展代码；它不提供运行时热替换。
+也可将光标放在类型名称处，通过命令面板执行：
 
-## 常用命令
+- **Go Interfaces: 查看实现的接口** / **Show Implemented Interfaces**
+- **Go Interfaces: 查看实现接口的类型** / **Show Implementing Types**
+- **Go Interfaces: 查看类型实现关系** / **Show Type Implementation Relations**
+- **Go Interfaces: 切换测试来源过滤** / **Toggle Test Source Filtering**
 
-| 命令                    | 用途                                    |
-| ----------------------- | --------------------------------------- |
-| `npm run check`         | 格式检查、ESLint 和 TypeScript 类型检查 |
-| `npm run format`        | 格式化源码与配置，保留现有 `AGENTS.md`  |
-| `npm run compile`       | 类型检查与开发构建，生成 source map     |
-| `npm run watch`         | 持续构建与类型检查                      |
-| `npm run build`         | 静态检查与生产构建                      |
-| `npm run package`       | 执行生产构建并生成本地 VSIX             |
-| `npm run package:files` | 查看 VSIX 待打包的文件列表              |
+显示上方关联名称需要启用 VS Code 的 `editor.codeLens`，显示左侧图标需要启用 `editor.glyphMargin`。左侧图标用于标识方向，导航可通过上方名称或类型名称处的悬停链接完成。
 
-遵循仓库约定，未配置单元测试、测试框架或测试脚本。上述静态检查与构建不代表扩展宿主中的交互已经验收。
+## 配置
 
-2026-11-04 的依赖检查中，`npm audit` 报告 13 项中等等级告警，均来自开发工具链对 `minimatch` 的传递依赖，对应同一个[上游公告](https://github.com/advisories/GHSA-g3hv-75wg-m249)。这些依赖不进入 VSIX；`npm audit --omit=dev` 报告 0 项告警。后续升级开发工具时需复核此项。
+| 配置                                      | 默认值 | 用途                                 |
+| ----------------------------------------- | ------ | ------------------------------------ |
+| `goInterfaces.hideTestingImplementations` | `true` | 按类型声明与直接方法来源过滤测试实现 |
+| `goInterfaces.codeLens`                   | `true` | 显示类型声明上方的关联名称           |
+| `goInterfaces.gutterIcons`                | `true` | 显示左侧方向图标与关系悬停           |
 
-## 目录与约定
+## 能力边界
 
-```text
-src/extension.ts       扩展入口、命令和资源生命周期
-.vscode/              F5 调试、构建任务和开发配置
-.github/workflows/     Windows / Linux 静态检查与打包流程
-package.json          扩展清单、命令声明和开发脚本
-package.nls*.json      清单的英文及简体中文文案
-esbuild.mjs            开发、监听和生产构建
-eslint.config.mjs     ESLint 与 TypeScript 类型感知规则
-tsconfig.json         严格类型检查及 VS Code API 类型范围
-dist/                 构建产物，不纳入版本控制
-```
+实现关系来自官方 Go 扩展的公开 definition、document symbol 和 implementation 接口。结果受语言服务返回的位置范围限制，不保证完整枚举 module 内的所有实现关系；没有可展示结果也不代表类型不存在实现关系。值与指针形式不分别显示，泛型、空接口及类型集合约束等类型存在查询限制。
 
-- 扩展按 Go 文件或命令调用按需激活；没有全工作区启动扫描
-- 入口使用普通函数，命令与日志通过 `context.subscriptions` 释放
-- 日志使用 VS Code 自带的 `LogOutputChannel`；通过 VS Code 的日志级别操作调整详细程度
-- 使用 `extensionKind: workspace`，为后续在工作区所在的扩展宿主中分析 Go 代码保留位置；远程环境仍需后续验证
-- 运行时代码目前只依赖 VS Code API；构建、格式化、静态检查和打包使用成熟工具
-- `@types/vscode` 固定为最低支持的 API 版本，避免开发时误用较新 API
-- 重要逻辑使用英文、中文各一行的注释，中文注释不使用中文句号
+测试来源过滤默认开启：类型声明文件以 `_test.go` 结尾且直接导入 `testing` 时，隐藏对应关系；对生产文件中的具体类型，还会检查接口方法对应的直接方法来源。公开接口无法提供完整的包变体和提升方法来源，证据不足时保留关系并标记为未确认。
 
-接口分析、配置项和结果展示会随对应功能逐步添加。
+查询以当前文件最近的 `go.mod` 为边界，`go.work` 中的其他 module 不纳入结果。虚拟工作区与未信任工作区不启用本扩展。
 
-## 本地打包
+## 第三方许可声明
 
-```sh
-npm run package
-```
+随扩展分发的 Tree-sitter 运行时与 Go 语法资源适用以下许可。
 
-根目录生成 `go-interfaces-impl-0.0.1.vsix`，可通过 VS Code 的 `Extensions: Install from VSIX...` 安装。`.vscodeignore` 只允许扩展入口产物、清单、翻译与说明文档进入包，源码、开发依赖和 source map 不随包分发。
+<details>
+<summary>展开查看第三方许可全文</summary>
 
-当前尚未设置 Marketplace 的 `publisher`，许可证保留为 `UNLICENSED`；本地打包使用 `--skip-license`。正式发布前需确定发布者与许可证，并调整打包配置。仓库没有自动发布流程。
+### @vscode/tree-sitter-wasm
 
-## 参考来源
+    MIT License
 
-| 来源                                                                                                                                                                     | 采用的做法                                    |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------- |
-| [Go 扩展](https://marketplace.visualstudio.com/items?itemName=golang.Go) / [源码](https://github.com/golang/vscode-go/blob/master/extension/package.json)                | Go 语言按需激活、扩展清单组织                 |
-| [ESLint 扩展](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) / [源码](https://github.com/microsoft/vscode-eslint/blob/main/package.json)    | 工作区扩展宿主声明、原生命令入口              |
-| [Prettier 扩展](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode) / [源码](https://github.com/prettier/prettier-vscode/blob/main/package.json) | esbuild、独立类型检查、清单本地化             |
-| [VS Code 官方构建指南](https://code.visualstudio.com/api/working-with-extensions/bundling-extension)                                                                     | 单文件打包、外置 `vscode`、区分开发与生产构建 |
-| [VS Code 官方扩展生成器](https://github.com/microsoft/vscode-generator-code)                                                                                             | 标准扩展入口、开发调试与任务组织              |
+    Copyright (c) Microsoft Corporation.
 
-仅选用当前骨架所需的做法，未引入这些项目的业务架构或测试脚手架。
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE
+
+### Tree-sitter
+
+The MIT License (MIT)
+
+Copyright (c) 2018-2024 Max Brunsfeld
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+### tree-sitter-go
+
+The MIT License (MIT)
+
+Copyright (c) 2014 Max Brunsfeld
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+</details>

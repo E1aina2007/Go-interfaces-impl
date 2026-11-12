@@ -6,4 +6,9 @@ dist/
 .DS_Store
 Thumbs.db
 
+# Local workspace overrides are not part of the standalone example module.
+# 本机工作区覆盖配置不属于独立示例 module
+examples/**/go.work
+examples/**/go.work.sum
+
 docs/

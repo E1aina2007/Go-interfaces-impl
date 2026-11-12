@@ -2,6 +2,20 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Run Extension (Acceptance Examples)",
+      "type": "extensionHost",
+      "request": "launch",
+      "runtimeExecutable": "${execPath}",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}",
+        "${workspaceFolder}/examples/acceptance",
+        "--goto",
+        "${workspaceFolder}/examples/acceptance/shapes/shapes.go:9:6"
+      ],
+      "outFiles": ["${workspaceFolder}/dist/**/*.js"],
+      "preLaunchTask": "npm: compile"
+    },
+    {
       "name": "Run Extension",
       "type": "extensionHost",
       "request": "launch",
