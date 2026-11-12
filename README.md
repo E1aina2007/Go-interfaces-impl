@@ -1,75 +1,90 @@
-# Go Interfaces Impl
-
 <p align="center">
-  <img src="media/icon.png" width="160" height="160" alt="Go Gopher 抱着接口关系徽标" />
+  <img src="media/icon.png" width="128" height="128" alt="Go Interfaces 插件图标" />
 </p>
 
-面向 Go 语言的 VS Code 插件，用于查看当前 Go module 内具名类型与 interface 的实现关系。视觉呈现与交互参考 GoLand，在类型声明旁展示关联类型，并支持直接跳转。
+<h1 align="center">Go Interfaces</h1>
 
-> _此项目源代码完全使用AI生成。_
+<p align="center"><strong>把 Go 的隐式接口实现关系，直接带到代码旁。</strong></p>
 
-## 为什么做这个？
+<p align="center">
+  <a href="https://marketplace.visualstudio.com/items?itemName=E1aina2007.go-interfaces-impl">VS Code Marketplace</a>
+  · <a href="#主要功能">主要功能</a>
+  · <a href="#快速开始">快速开始</a>
+  · <a href="#配置">配置</a>
+  · <a href="https://github.com/E1aina2007/Go-interfaces-impl/issues">问题反馈</a>
+</p>
 
-Go 语言优秀的接口隐式实现设计，让其能够在代码中被灵活地使用。但是隐式实现也带来了一定的可读性下降，对初学者来说可能不是特别友好。恰逢 AI 与 Vibe Coding 的蓬勃发展，本插件因此诞生。
+<p align="center"><a href="readme/README.en.md">Read in English →</a></p>
+
+---
+
+## 项目简介
+
+Go 的 interface 采用隐式实现。Go Interfaces 将类型与接口之间的关系展示在声明旁，便于理解代码并快速跳转。交互方式参考 GoLand。
 
 ## 主要功能
 
-- **双向查询**：查看具体类型实现的接口，或查看接口的实现类型，支持 struct、具名函数、基础类型、切片、数组、map 和 channel
-- **行内展示**：在类型声明上方显示可点击的关联名称，在左侧显示实现方向图标，并通过悬停查看关系与导航链接
-- **结果导航**：点击关联名称直接跳转，也可打开完整结果列表进行选择
-- **module 范围**：将结果限定在当前文件所属的 Go module 内，排除嵌套 module、vendor 和依赖目录
-- **测试来源过滤**：按类型声明与直接方法来源过滤测试实现，对来源不完整的关系保留未确认标记
-- **界面适配**：支持英文、简体中文，以及深浅色主题
+| 能力             | 说明                                                                      |
+| ---------------- | ------------------------------------------------------------------------- |
+| **双向查询**     | 查看某个类型实现了哪些接口，或某个接口由哪些类型实现                      |
+| **行内关系**     | 在类型声明附近显示关联名称和方向图标，并提供悬停信息                      |
+| **快速导航**     | 点击关联名称跳转，或打开完整结果列表进行选择                              |
+| **module 范围**  | 以当前文件所属的 Go module 为查询范围，排除嵌套 module、vendor 和依赖目录 |
+| **测试来源过滤** | 隐藏可确认来自测试代码的实现；来源不完整时保留关系并标记未确认            |
+| **界面适配**     | 支持简体中文、英文以及深色和浅色主题                                      |
 
-## 使用要求
+当前支持 struct、具名函数、基础类型、切片、数组、map 和 channel 与 interface 的实现关系。
 
-- VS Code 1.110 或更新版本
-- 安装[官方 Go 扩展](https://github.com/golang/vscode-go)，并配置其所需的 Go SDK 与 gopls
-- 在受信任的本地文件系统工作区中打开包含 `go.mod` 的 Go 项目
+## 快速开始
 
-插件使用 TypeScript 编写，通过 VS Code 公开语言接口复用官方 Go 扩展，不包含自有 Go 分析器，也不自行启动或管理 gopls。Go SDK 与语言服务由官方 Go 扩展负责。
+1. 从 [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=E1aina2007.go-interfaces-impl) 安装 **Go Interfaces**。
+2. 安装并配置[官方 Go 扩展](https://marketplace.visualstudio.com/items?itemName=golang.Go)，包括 Go SDK 和 gopls。
+3. 在受信任的本地工作区中打开包含 <code>go.mod</code> 的 Go 项目。
+
+**要求：VS Code 1.110 或更新版本。**
+
+本插件通过 VS Code 公开语言接口复用官方 Go 扩展提供的信息，不包含自有 Go 分析器，也不会自行启动或管理 gopls。
 
 ## 使用方式
 
-打开 Go 文件后，插件自动查询可见类型声明的实现关系。具体类型上方显示 `Implements`，接口上方显示 `Implemented by`；点击关联名称可跳转，点击方向与数量可打开完整列表。名称后的 `?` 表示测试来源未完全确认。
+打开 Go 文件后，插件会查询当前文件中可见类型声明的实现关系。具体类型上方显示 <code>Implements</code>，接口上方显示 <code>Implemented by</code>。点击关联名称可跳转；点击关系方向与数量可打开完整列表。名称后的 <code>?</code> 表示测试来源未能完全确认。
 
-也可将光标放在类型名称处，通过命令面板执行：
+也可以将光标放在类型名称上，通过命令面板运行：
 
 - **Go Interfaces: 查看实现的接口** / **Show Implemented Interfaces**
 - **Go Interfaces: 查看实现接口的类型** / **Show Implementing Types**
 - **Go Interfaces: 查看类型实现关系** / **Show Type Implementation Relations**
-- **Go Interfaces: 切换测试来源过滤** / **Toggle Test Source Filtering**
+- **Go Interfaces: 切换测试来源过滤** / **Toggle Test Source Filter**
 
-显示上方关联名称需要启用 VS Code 的 `editor.codeLens`，显示左侧图标需要启用 `editor.glyphMargin`。左侧图标用于标识方向，导航可通过上方名称或类型名称处的悬停链接完成。
+上方关联名称由 VS Code 的 <code>editor.codeLens</code> 控制；左侧方向图标由 <code>editor.glyphMargin</code> 控制。关系导航可使用上方名称或类型名称处的悬停链接。
 
 ## 配置
 
-| 配置                                      | 默认值 | 用途                                 |
-| ----------------------------------------- | ------ | ------------------------------------ |
-| `goInterfaces.hideTestingImplementations` | `true` | 按类型声明与直接方法来源过滤测试实现 |
-| `goInterfaces.codeLens`                   | `true` | 显示类型声明上方的关联名称           |
-| `goInterfaces.gutterIcons`                | `true` | 显示左侧方向图标与关系悬停           |
+| 设置                                                 | 默认值            | 说明                           |
+| ---------------------------------------------------- | ----------------- | ------------------------------ |
+| <code>goInterfaces.hideTestingImplementations</code> | <code>true</code> | 按测试来源过滤实现关系         |
+| <code>goInterfaces.codeLens</code>                   | <code>true</code> | 显示类型声明附近的关联名称     |
+| <code>goInterfaces.gutterIcons</code>                | <code>true</code> | 显示左侧方向图标和关系悬停信息 |
 
 ## 能力边界
 
-实现关系来自官方 Go 扩展的公开 definition、document symbol 和 implementation 接口。结果受语言服务返回的位置范围限制，不保证完整枚举 module 内的所有实现关系；没有可展示结果也不代表类型不存在实现关系。值与指针形式不分别显示，泛型、空接口及类型集合约束等类型存在查询限制。
+- 实现关系来自官方 Go 扩展公开的 definition、document symbol 和 implementation 接口。结果受语言服务返回范围限制，不保证完整枚举 module 内所有关系；没有结果也不能证明类型没有实现接口。
+- 值类型和指针类型不分别展示。泛型、空接口及类型集合约束等场景存在查询限制。
+- 测试来源过滤默认开启。若类型声明位于直接导入 <code>testing</code> 的 <code>_test.go</code> 文件，会隐藏对应关系；若生产类型所需的直接方法只报告为测试来源，也会过滤。同一方法若存在非测试来源，不会仅因测试来源而过滤。公开接口无法完整提供包变体或提升方法来源，因此无法解析或涉及提升方法的关系会保留并标记未确认。
+- 查询以当前文件最近的 <code>go.mod</code> 为边界；<code>go.work</code> 中的其他 module 不纳入结果。虚拟工作区与未信任工作区不启用本插件。
 
-测试来源过滤默认开启：类型声明文件以 `_test.go` 结尾且直接导入 `testing` 时，隐藏对应关系；对生产文件中的具体类型，还会检查接口方法对应的直接方法来源。公开接口无法提供完整的包变体和提升方法来源，证据不足时保留关系并标记为未确认。
+## 反馈与版本
 
-查询以当前文件最近的 `go.mod` 为边界，`go.work` 中的其他 module 不纳入结果。虚拟工作区与未信任工作区不启用本扩展。
+欢迎通过 [GitHub Issues](https://github.com/E1aina2007/Go-interfaces-impl/issues) 提交问题或建议。发布者 ID 为 <code>E1aina2007</code>；版本记录见 [CHANGELOG](CHANGELOG.md)，自动发布流程见 [Release 工作流](.github/workflows/release.yml)。
 
-## 发布
+## 许可与致谢
 
-发布者 ID 为 `E1aina2007`，自动发布配置见 [Release 工作流](.github/workflows/release.yml)，版本变化见 [更新记录](CHANGELOG.md)。
+本项目采用 [MIT License](LICENSE)。
 
-## 第三方许可声明
-
-项目图标参考 [Renee French 设计的 Go Gopher](https://go.dev/blog/gopher)，原角色采用 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) 许可。本图使用 AI 重新绘制，加入接口括号与实现关系连线。
-
-随扩展分发的 Tree-sitter 运行时与 Go 语法资源适用以下许可。
+随插件分发的 Tree-sitter 运行时与 Go 语法资源采用 MIT License：
 
 <details>
-<summary>展开查看第三方许可全文</summary>
+<summary>第三方许可证全文</summary>
 
 ### @vscode/tree-sitter-wasm
 
@@ -97,54 +112,57 @@ Go 语言优秀的接口隐式实现设计，让其能够在代码中被灵活�
 
 ### Tree-sitter
 
-The MIT License (MIT)
+    The MIT License (MIT)
 
-Copyright (c) 2018-2024 Max Brunsfeld
+    Copyright (c) 2018-2024 Max Brunsfeld
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE
 
 ### tree-sitter-go
 
-The MIT License (MIT)
+    The MIT License (MIT)
 
-Copyright (c) 2014 Max Brunsfeld
+    Copyright (c) 2014 Max Brunsfeld
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE
 
 </details>
 
-## 许可证
+<details>
+<summary>项目说明</summary>
 
-本项目遵循 [MIT](LICENSE) 许可证。
+本项目源代码完全由 AI 生成。
+
+</details>
