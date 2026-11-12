@@ -76,14 +76,14 @@ export class ImplementationGutter implements Disposable, HoverProvider {
 		// Resolve hovers on demand so retained icons cannot carry stale command links.
 		// 按需生成悬停内容，避免保留的图标装饰携带过期命令链接
 		this.hover = languages.registerHoverProvider({ language: 'go', scheme: 'file' }, this);
-		this.changed = annotations.onDidChange(() => {
+		this.changed = annotations.onDidChange((event) => {
 			const active = window.activeTextEditor;
 			// VS Code caches open hovers; dismiss the old popup when its results invalidate.
 			// VS Code 会缓存已打开的悬停，结果失效时先关闭旧弹层
 			if (
+				event.kind === 'invalidated' &&
 				active &&
-				!annotations.get(active.document) &&
-				annotations.retaining(active.document)
+				annotations.view(active.document).kind === 'retained'
 			) {
 				void commands
 					.executeCommand('editor.action.hideHover')
@@ -92,6 +92,9 @@ export class ImplementationGutter implements Disposable, HoverProvider {
 					});
 			}
 			for (const editor of window.visibleTextEditors) {
+				if (event.kind === 'document' && editor.document.uri.toString() !== event.uri) {
+					continue;
+				}
 				this.update(editor);
 			}
 		});
@@ -106,11 +109,13 @@ export class ImplementationGutter implements Disposable, HoverProvider {
 			return undefined;
 		}
 		const state = await this.annotations.load(document);
+		const view = this.annotations.view(document);
 		if (
 			!state ||
 			token.isCancellationRequested ||
 			!annotationsEnabled(document, 'gutterIcons') ||
-			this.annotations.get(document) !== state
+			view.kind !== 'loaded' ||
+			view.state !== state
 		) {
 			return undefined;
 		}
@@ -151,18 +156,15 @@ export class ImplementationGutter implements Disposable, HoverProvider {
 	private update(editor: TextEditor): void {
 		const implemented: DecorationOptions[] = [];
 		const implementations: DecorationOptions[] = [];
-		const state = this.annotations.get(editor.document);
+		const view = this.annotations.view(editor.document);
+		const enabled = annotationsEnabled(editor.document, 'gutterIcons');
 		// Preserve VS Code's tracked icon ranges until declarations are read again.
 		// 声明重新读取前保留由 VS Code 跟随编辑的图标范围
-		if (
-			!state &&
-			this.annotations.retaining(editor.document) &&
-			annotationsEnabled(editor.document, 'gutterIcons')
-		) {
+		if (view.kind === 'retained' && enabled) {
 			return;
 		}
-		if (state && annotationsEnabled(editor.document, 'gutterIcons')) {
-			for (const item of state.items) {
+		if (view.kind === 'loaded' && enabled) {
+			for (const item of view.state.items) {
 				const shown = shownResult(item);
 				if (!shown || shown.result.matches.length === 0) {
 					continue;

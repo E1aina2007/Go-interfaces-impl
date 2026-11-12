@@ -1,5 +1,9 @@
 # Go Interfaces Impl
 
+<p align="center">
+  <img src="media/icon.png" width="160" height="160" alt="Go Gopher 抱着接口关系徽标" />
+</p>
+
 面向 Go 语言的 VS Code 插件，用于查看当前 Go module 内具名类型与 interface 的实现关系。视觉呈现与交互参考 GoLand，在类型声明旁展示关联类型，并支持直接跳转。
 
 > _此项目源代码完全使用AI生成。_

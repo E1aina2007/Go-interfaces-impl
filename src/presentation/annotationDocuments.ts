@@ -5,8 +5,10 @@ import { findModule } from '../workspace/module';
 import {
 	annotationsAvailable,
 	createAnnotations,
+	documentView,
 	retainAnnotations,
 	type DocumentAnnotations,
+	type DocumentView,
 } from './annotationModel';
 
 interface DocumentLoad {
@@ -32,7 +34,7 @@ export class AnnotationDocuments implements Disposable {
 	constructor(
 		private readonly syntax: GoSyntax,
 		private readonly output: LogOutputChannel,
-		private readonly changed: () => void,
+		private readonly changed: (uri: string) => void,
 		private readonly schedule: () => void,
 	) {}
 
@@ -51,10 +53,10 @@ export class AnnotationDocuments implements Disposable {
 		return this.documents.values();
 	}
 
-	// True while retained results wait for the document to be read again after a change.
-	// 变化后文档尚未重新读取、旧结果仍在等待接续时返回 true
-	retaining(document: TextDocument): boolean {
-		return this.previous.has(document.uri.toString());
+	// Retain even an empty record until the current document has been read again.
+	// 即使保留记录为空，也要等当前文档重新读取后才结束保留阶段
+	view(document: TextDocument): DocumentView {
+		return documentView(this.get(document), this.previous.has(document.uri.toString()));
 	}
 
 	invalidate(): void {
@@ -135,7 +137,7 @@ export class AnnotationDocuments implements Disposable {
 			this.documents.set(uri, state);
 			this.previous.delete(uri);
 			if (retained) {
-				this.changed();
+				this.changed(uri);
 			}
 			this.schedule();
 			return state;
@@ -157,7 +159,7 @@ export class AnnotationDocuments implements Disposable {
 		const retained = this.previous.delete(uri);
 		const loading = this.loading.delete(document);
 		if ((removed || retained) && !this.disposed) {
-			this.changed();
+			this.changed(uri);
 		}
 		return removed || retained || loading;
 	}

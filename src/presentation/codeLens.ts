@@ -4,6 +4,8 @@ import {
 	workspace,
 	type CancellationToken,
 	type CodeLensProvider,
+	type Disposable,
+	type Event,
 	type Range,
 	type TextDocument,
 } from 'vscode';
@@ -55,10 +57,17 @@ function relationLenses(
 }
 
 export class ImplementationLenses implements CodeLensProvider {
-	readonly onDidChangeCodeLenses;
+	readonly onDidChangeCodeLenses: Event<void>;
 
 	constructor(private readonly annotations: ImplementationAnnotations) {
-		this.onDidChangeCodeLenses = annotations.onDidChange;
+		this.onDidChangeCodeLenses = (listener, thisArgs, disposables): Disposable =>
+			annotations.onDidChange(
+				() => {
+					listener.call(thisArgs, undefined);
+				},
+				undefined,
+				disposables,
+			);
 	}
 
 	async provideCodeLenses(document: TextDocument, token: CancellationToken): Promise<CodeLens[]> {
@@ -66,11 +75,13 @@ export class ImplementationLenses implements CodeLensProvider {
 			return [];
 		}
 		const state = await this.annotations.load(document);
+		const view = this.annotations.view(document);
 		if (
 			!state ||
 			token.isCancellationRequested ||
 			!annotationsEnabled(document, 'codeLens') ||
-			this.annotations.get(document) !== state
+			view.kind !== 'loaded' ||
+			view.state !== state
 		) {
 			return [];
 		}

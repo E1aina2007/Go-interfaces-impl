@@ -15,7 +15,7 @@ export class AnnotationCommands implements Disposable {
 		private readonly documents: AnnotationDocuments,
 		private readonly queries: ImplementationQueries,
 		private readonly output: LogOutputChannel,
-		retried: () => void,
+		retried: (uri: string) => void,
 	) {
 		this.subscriptions = [
 			commands.registerCommand(
@@ -50,7 +50,7 @@ export class AnnotationCommands implements Disposable {
 						// Replayed retry commands must not reset successful or retained results.
 						// 重放的重试命令不能重置成功结果或保留的旧结果
 						item.state = { kind: 'pending' };
-						retried();
+						retried(source);
 					}
 				},
 			),

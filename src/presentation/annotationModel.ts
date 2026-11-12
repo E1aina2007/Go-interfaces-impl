@@ -33,6 +33,28 @@ export interface DocumentAnnotations {
 	readonly blocked: boolean;
 }
 
+// A loaded document still has declaration-level states; this view does not grant navigation.
+// 文档加载后仍有声明级状态，展示视图不代表允许导航
+export type DocumentView =
+	| { readonly kind: 'loaded'; readonly state: DocumentAnnotations }
+	| { readonly kind: 'retained' }
+	| { readonly kind: 'empty' };
+
+export type AnnotationChange =
+	| { readonly kind: 'invalidated' }
+	| { readonly kind: 'document'; readonly uri: string }
+	| { readonly kind: 'editors' };
+
+export function documentView(
+	state: DocumentAnnotations | undefined,
+	retained: boolean,
+): DocumentView {
+	if (state) {
+		return { kind: 'loaded', state };
+	}
+	return retained ? { kind: 'retained' } : { kind: 'empty' };
+}
+
 export interface ShownResult {
 	readonly result: QueryResult;
 	readonly stale: boolean;

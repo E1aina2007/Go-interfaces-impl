@@ -29,7 +29,7 @@ export class AnnotationRefresh implements Disposable {
 		private readonly documents: AnnotationDocuments,
 		private readonly queries: ImplementationQueries,
 		private readonly output: LogOutputChannel,
-		private readonly changed: () => void,
+		private readonly changed: (uri: string) => void,
 	) {}
 
 	cancel(): void {
@@ -134,7 +134,7 @@ export class AnnotationRefresh implements Disposable {
 						request.dispose();
 					}
 					if (!this.disposed) {
-						this.changed();
+						this.changed(state.document.uri.toString());
 					}
 				}
 			}

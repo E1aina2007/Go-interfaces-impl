@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    tags: ['v*']
+    branches: [main]
 
 permissions:
   contents: read
@@ -12,12 +12,91 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  prepare:
+    name: Check release version
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      publish: ${{ steps.release.outputs.publish }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
+      - name: Validate release version
+        id: version
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync, readFileSync } from 'node:fs';
+
+          const manifest = JSON.parse(readFileSync('package.json', 'utf8'));
+          const lockfile = JSON.parse(readFileSync('package-lock.json', 'utf8'));
+          const version = manifest.version;
+          if (typeof version !== 'string' || !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version)) {
+            throw new Error('Release version must use MAJOR.MINOR.PATCH');
+          }
+          // Check both lockfile versions before building or publishing any artifact.
+          // 构建或发布产物前核对锁文件的两处版本
+          for (const actual of [lockfile.version, lockfile.packages?.['']?.version]) {
+            if (actual !== version) {
+              throw new Error('package.json and package-lock.json versions must match');
+            }
+          }
+          appendFileSync(process.env.GITHUB_OUTPUT, `tag=v${version}\n`);
+          NODE
+      - name: Skip an existing release
+        id: release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        # Fail on API errors so an unavailable release list cannot be mistaken for a new version.
+        # API 请求失败时终止，避免将无法读取的发行版列表误认为尚未发布
+        run: |
+          release_tags=$(gh api --paginate "repos/$GH_REPO/releases?per_page=100" --jq '.[].tag_name')
+          while IFS= read -r tag; do
+            if [[ "$tag" == "$RELEASE_TAG" ]]; then
+              echo "Release $RELEASE_TAG already exists; skipping."
+              echo 'publish=false' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done <<< "$release_tags"
+          echo 'publish=true' >> "$GITHUB_OUTPUT"
+      - name: Validate existing tag target
+        if: steps.release.outputs.publish == 'true'
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+          RELEASE_COMMIT: ${{ github.sha }}
+        # An existing tag must identify the same source as the package being published.
+        # 已有标签必须与待发布产物使用同一份源码
+        run: |
+          if git show-ref --verify --quiet "refs/tags/$RELEASE_TAG"; then
+            tagged_commit=$(git rev-parse "$RELEASE_TAG^{commit}")
+            if [[ "$tagged_commit" != "$RELEASE_COMMIT" ]]; then
+              echo "Tag $RELEASE_TAG points to another commit; update the package version." >&2
+              exit 1
+            fi
+          fi
+
   build:
+    needs: prepare
+    if: needs.prepare.outputs.publish == 'true'
     uses: ./.github/workflows/ci.yml
+    with:
+      package: true
 
   publish:
     name: Publish GitHub Release
-    needs: build
+    needs: [prepare, build]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -36,7 +115,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+          RELEASE_COMMIT: ${{ github.sha }}
         run: |
           shopt -s nullglob
           packages=(*.vsix)
@@ -47,4 +127,4 @@ jobs:
           fi
           sha256sum "$expected" > SHA256SUMS
           gh release create "$RELEASE_TAG" "$expected" SHA256SUMS \
-            --verify-tag --title "$RELEASE_TAG" --generate-notes
+            --target "$RELEASE_COMMIT" --title "$RELEASE_TAG" --generate-notes
