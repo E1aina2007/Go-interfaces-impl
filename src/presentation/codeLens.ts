@@ -15,10 +15,13 @@ import {
 	annotationsEnabled,
 	inlineLimit,
 	openRelation,
+	openRelationArguments,
 	relationArguments,
+	retryArguments,
 	retryRelation,
 	shownResult,
 	showRelations,
+	type ShowRelationsArguments,
 } from './annotationModel';
 import { findImplementations } from './commands';
 import { relationDirection, relationSummary } from './labels';
@@ -28,7 +31,7 @@ import { relationDirection, relationSummary } from './labels';
 function relationLenses(
 	range: Range,
 	result: QueryResult,
-	args: readonly unknown[] | undefined,
+	args: ShowRelationsArguments | undefined,
 ): CodeLens[] {
 	const summary = relationSummary(result);
 	const refreshing = l10n.t('Refreshing implementation relations after a change…');
@@ -49,7 +52,7 @@ function relationLenses(
 				title: `${match.declaration.name}${result.unverifiedTesting.has(match.id) ? ' ?' : ''}`,
 				tooltip: `${location}\n${args ? summary : refreshing}`,
 				command: args ? openRelation : '',
-				arguments: args ? [...args, match.id] : [],
+				arguments: args ? openRelationArguments(args, match.id) : [],
 			}),
 		);
 	}
@@ -93,7 +96,7 @@ export class ImplementationLenses implements CodeLensProvider {
 						title: l10n.t('Unable to load relations · Retry'),
 						tooltip: item.state.message,
 						command: retryRelation,
-						arguments: [document.uri.toString(), state.version, item.start],
+						arguments: retryArguments(state, item),
 					}),
 				);
 				continue;

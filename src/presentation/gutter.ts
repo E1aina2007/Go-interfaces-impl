@@ -22,17 +22,20 @@ import {
 	annotationsEnabled,
 	inlineLimit,
 	openRelation,
+	openRelationArguments,
 	relationArguments,
 	shownResult,
 	showRelations,
+	type OpenRelationArguments,
+	type ShowRelationsArguments,
 } from './annotationModel';
 import { relationDirection, relationSummary, unverifiedNote } from './labels';
 
 function appendLink(
 	hover: MarkdownString,
 	label: string,
-	command: string,
-	args: readonly unknown[],
+	command: typeof openRelation | typeof showRelations,
+	args: ShowRelationsArguments | OpenRelationArguments,
 ): void {
 	// Build a command link with an escaped label and encoded arguments.
 	// 使用转义后的标签和编码参数构建命令链接
@@ -134,7 +137,12 @@ export class ImplementationGutter implements Disposable, HoverProvider {
 		}
 		for (const match of result.matches.slice(0, inlineLimit)) {
 			if (args) {
-				appendLink(hover, match.declaration.name, openRelation, [...args, match.id]);
+				appendLink(
+					hover,
+					match.declaration.name,
+					openRelation,
+					openRelationArguments(args, match.id),
+				);
 			} else {
 				hover.appendText(match.declaration.name);
 			}

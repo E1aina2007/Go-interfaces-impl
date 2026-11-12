@@ -7,8 +7,12 @@ export const showRelations = 'goInterfaces.showRelations';
 export const retryRelation = 'goInterfaces.retryRelation';
 export const inlineLimit = 6;
 
-// Keep display states exclusive; stale results may be shown but never used for navigation.
-// 展示状态互斥，旧结果仅供展示，不能用于导航
+export type RetryRelationArguments = [source: string, version: number, offset: number];
+export type ShowRelationsArguments = [...RetryRelationArguments, generation: number];
+export type OpenRelationArguments = [...ShowRelationsArguments, target: string];
+
+// Define mutually exclusive annotation result states.
+// 定义互斥的标注结果状态
 export type AnnotationState =
 	| { readonly kind: 'pending' }
 	| { readonly kind: 'stale'; readonly result: QueryResult }
@@ -97,8 +101,22 @@ export function relationArguments(
 	state: DocumentAnnotations,
 	item: Annotation,
 	result: QueryResult,
-): unknown[] {
-	return [state.document.uri.toString(), state.version, item.start, result.generation];
+): ShowRelationsArguments {
+	return [...retryArguments(state, item), result.generation];
+}
+
+export function retryArguments(
+	state: DocumentAnnotations,
+	item: Annotation,
+): RetryRelationArguments {
+	return [state.document.uri.toString(), state.version, item.start];
+}
+
+export function openRelationArguments(
+	args: ShowRelationsArguments,
+	target: string,
+): OpenRelationArguments {
+	return [...args, target];
 }
 
 export function createAnnotations(
