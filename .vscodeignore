@@ -10,4 +10,5 @@
 !dist/wasm/*.wasm
 !media/*.svg
 !media/icon.png
+!media/examples/example.zh-cn.png
 !l10n/*.json

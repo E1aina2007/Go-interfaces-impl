@@ -10,6 +10,7 @@
   <a href="https://marketplace.visualstudio.com/items?itemName=E1aina2007.go-interfaces-impl">VS Code Marketplace</a>
   · <a href="#主要功能">主要功能</a>
   · <a href="#快速开始">快速开始</a>
+  · <a href="#示例">代码示例</a>
   · <a href="#配置">配置</a>
   · <a href="https://github.com/E1aina2007/Go-interfaces-impl/issues">问题反馈</a>
 </p>
@@ -39,15 +40,23 @@ Go 的 interface 采用隐式实现。Go Interfaces 将类型与接口之间的�
 
 1. 从 [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=E1aina2007.go-interfaces-impl) 安装 **Go Interfaces**。
 2. 安装并配置[官方 Go 扩展](https://marketplace.visualstudio.com/items?itemName=golang.Go)，包括 Go SDK 和 gopls。
-3. 在受信任的本地工作区中打开包含 <code>go.mod</code> 的 Go 项目。
+3. 在受信任的本地工作区中打开包含 `go.mod` 的 Go 项目。
 
 **要求：VS Code 1.110 或更新版本。**
 
 本插件通过 VS Code 公开语言接口复用官方 Go 扩展提供的信息，不包含自有 Go 分析器，也不会自行启动或管理 gopls。
 
+## 示例
+
+下图展示了 `Rect` 实现 `Shape` 时，插件在类型声明上方显示的关系：
+
+![Go Interfaces 在 Rect 声明上方展示其实现的 Shape 接口](media/examples/example.zh-cn.png)
+
+完整的多类型验收示例见 [shapes.go](examples/acceptance/shapes/shapes.go)。
+
 ## 使用方式
 
-打开 Go 文件后，插件会查询当前文件中可见类型声明的实现关系。具体类型上方显示 <code>Implements</code>，接口上方显示 <code>Implemented by</code>。点击关联名称可跳转；点击关系方向与数量可打开完整列表。名称后的 <code>?</code> 表示测试来源未能完全确认。
+打开 Go 文件后，插件会查询当前文件中可见类型声明的实现关系。具体类型上方显示 `Implements`，接口上方显示 `Implemented by`。点击关联名称可跳转；点击关系方向与数量可打开完整列表。名称后的 `?` 表示测试来源未能完全确认。
 
 也可以将光标放在类型名称上，通过命令面板运行：
 
@@ -56,26 +65,26 @@ Go 的 interface 采用隐式实现。Go Interfaces 将类型与接口之间的�
 - **Go Interfaces: 查看类型实现关系** / **Show Type Implementation Relations**
 - **Go Interfaces: 切换测试来源过滤** / **Toggle Test Source Filter**
 
-上方关联名称由 VS Code 的 <code>editor.codeLens</code> 控制；左侧方向图标由 <code>editor.glyphMargin</code> 控制。关系导航可使用上方名称或类型名称处的悬停链接。
+上方关联名称由 VS Code 的 `editor.codeLens` 控制；左侧方向图标由 `editor.glyphMargin` 控制。关系导航可使用上方名称或类型名称处的悬停链接。
 
 ## 配置
 
-| 设置                                                 | 默认值            | 说明                           |
-| ---------------------------------------------------- | ----------------- | ------------------------------ |
-| <code>goInterfaces.hideTestingImplementations</code> | <code>true</code> | 按测试来源过滤实现关系         |
-| <code>goInterfaces.codeLens</code>                   | <code>true</code> | 显示类型声明附近的关联名称     |
-| <code>goInterfaces.gutterIcons</code>                | <code>true</code> | 显示左侧方向图标和关系悬停信息 |
+| 设置                                      | 默认值 | 说明                           |
+| ----------------------------------------- | ------ | ------------------------------ |
+| `goInterfaces.hideTestingImplementations` | `true` | 按测试来源过滤实现关系         |
+| `goInterfaces.codeLens`                   | `true` | 显示类型声明附近的关联名称     |
+| `goInterfaces.gutterIcons`                | `true` | 显示左侧方向图标和关系悬停信息 |
 
 ## 能力边界
 
 - 实现关系来自官方 Go 扩展公开的 definition、document symbol 和 implementation 接口。结果受语言服务返回范围限制，不保证完整枚举 module 内所有关系；没有结果也不能证明类型没有实现接口。
 - 值类型和指针类型不分别展示。泛型、空接口及类型集合约束等场景存在查询限制。
-- 测试来源过滤默认开启。若类型声明位于直接导入 <code>testing</code> 的 <code>_test.go</code> 文件，会隐藏对应关系；若生产类型所需的直接方法只报告为测试来源，也会过滤。同一方法若存在非测试来源，不会仅因测试来源而过滤。公开接口无法完整提供包变体或提升方法来源，因此无法解析或涉及提升方法的关系会保留并标记未确认。
-- 查询以当前文件最近的 <code>go.mod</code> 为边界；<code>go.work</code> 中的其他 module 不纳入结果。虚拟工作区与未信任工作区不启用本插件。
+- 测试来源过滤默认开启。若类型声明位于直接导入 `testing` 的 `_test.go` 文件，会隐藏对应关系；若生产类型所需的直接方法只报告为测试来源，也会过滤。同一方法若存在非测试来源，不会仅因测试来源而过滤。公开接口无法完整提供包变体或提升方法来源，因此无法解析或涉及提升方法的关系会保留并标记未确认。
+- 查询以当前文件最近的 `go.mod` 为边界；`go.work` 中的其他 module 不纳入结果。虚拟工作区与未信任工作区不启用本插件。
 
 ## 反馈与版本
 
-欢迎通过 [GitHub Issues](https://github.com/E1aina2007/Go-interfaces-impl/issues) 提交问题或建议。发布者 ID 为 <code>E1aina2007</code>；版本记录见 [CHANGELOG](CHANGELOG.md)，自动发布流程见 [Release 工作流](.github/workflows/release.yml)。
+欢迎通过 [GitHub Issues](https://github.com/E1aina2007/Go-interfaces-impl/issues) 提交问题或建议。发布者 ID 为 `E1aina2007`；版本记录见 [CHANGELOG](CHANGELOG.md)，自动发布流程见 [Release 工作流](.github/workflows/release.yml)。
 
 ## 许可与致谢
 
