@@ -117,7 +117,9 @@ export class TypeResolver {
 				}
 				target = candidate;
 			}
-			if (!target) {
+			// Generic aliases and defined references need instance-aware identities.
+			// 泛型别名和新定义引用需要能区分实例的身份
+			if (!target || target.declaration.generic) {
 				return undefined;
 			}
 			// Resolve aliases to their target type.

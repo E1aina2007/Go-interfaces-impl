@@ -36,6 +36,8 @@ Go uses implicit interface implementation, which makes types flexible to use but
 
 The extension currently recognizes relationships for structs, named functions, basic types, slices, arrays, maps, and channels.
 
+Generic structs support bidirectional queries with ordinary non-empty interfaces when they have no embedded fields and the required direct methods have signatures independent of receiver type parameters. Both value and pointer receivers are supported; results share the type declaration's identity.
+
 Built-in extension messages follow the VS Code display language: Simplified Chinese uses Chinese, English uses English, and other languages fall back to English. After changing the display language in VS Code, restart as prompted to apply it.
 
 ## Quick start
@@ -80,7 +82,7 @@ Related names above declarations are controlled by VS Code's `editor.codeLens` s
 ## Known limitations
 
 - Results come from the definition, document symbol, and implementation features exposed by the official Go extension. They are limited by the ranges returned by the language service and may not enumerate every relationship in a module. No result does not prove that a type has no implementations.
-- Value and pointer forms are not shown separately. Queries involving generics, empty interfaces, and type-set constraints have limitations.
+- Value and pointer forms are not shown separately. Generic interfaces, generic aliases and defined references, promoted generic methods, parameter-dependent method signatures, empty interfaces, and type-set constraints are outside the supported scope. Generic instantiations are not counted separately. Generic relations without the necessary method evidence count as unsupported, even when test filtering is disabled.
 - Test source filtering is enabled by default. A relationship is hidden when its type declaration is in a `_test.go` file that directly imports `testing`, or when a required direct method is reported only from test code. A non-test source for the same method prevents filtering on that method. The public API does not expose every package variant or promoted method source, so unresolved or promoted sources are kept and marked as uncertain.
 - Queries are scoped to the nearest `go.mod` for the current file. Other modules in a `go.work` workspace are not included. Virtual and untrusted workspaces are not supported.
 

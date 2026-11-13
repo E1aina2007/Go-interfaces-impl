@@ -159,7 +159,8 @@ export class TestingFilter {
 				}
 				continue;
 			}
-			if (declaration.generic) {
+			if (declaration.generic && declaration.signatureUsesTypeParameters !== false) {
+				classified = false;
 				continue;
 			}
 			if (declaration.name !== method.name) {
@@ -169,7 +170,7 @@ export class TestingFilter {
 			const owner = await this.receiver(
 				new Location(location.uri, file.document.positionAt(declaration.receiver)),
 			);
-			if (!owner || owner.declaration.kind === 'interface' || owner.declaration.generic) {
+			if (!owner || owner.declaration.kind === 'interface') {
 				classified = false;
 				continue;
 			}

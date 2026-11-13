@@ -78,13 +78,49 @@ export function method(node: Node): GoMethod | undefined {
 	if (!name || !type || !['type_identifier', 'generic_type'].includes(type.type)) {
 		return undefined;
 	}
+	const generic = type.type === 'generic_type';
+	const receiverTypeParameters = generic ? receiverParameters(type) : [];
+	// Receiver parameters introduce their own names, independently of the type declaration.
+	// 接收者类型参数有独立名称，不沿用类型声明中的名称
 	return {
 		name: name.text,
 		start: name.startIndex,
 		end: name.endIndex,
 		receiver: type.startIndex,
-		generic: type.type === 'generic_type',
+		generic,
+		receiverTypeParameters,
+		signatureUsesTypeParameters: signatureUsesParameters(node, receiverTypeParameters),
 	};
+}
+
+function signatureUsesParameters(
+	node: Node,
+	names: readonly string[] | undefined,
+): boolean | undefined {
+	const parameters = node.childForFieldName('parameters');
+	if (!names || !parameters || node.hasError) return undefined;
+	for (const part of [parameters, node.childForFieldName('result')]) {
+		if (!part) continue;
+		for (const item of [part, ...part.descendantsOfType('type_identifier')]) {
+			if (item?.type === 'type_identifier' && names.includes(item.text)) return true;
+		}
+	}
+	return false;
+}
+
+function receiverParameters(type: Node): string[] | undefined {
+	const argumentsNode = type.childForFieldName('type_arguments');
+	if (!argumentsNode || argumentsNode.hasError) {
+		return undefined;
+	}
+	const names: string[] = [];
+	for (const argument of argumentsNode.namedChildren) {
+		if (!argument || argument.type === 'comment') continue;
+		const members = argument.namedChildren.filter((item) => item?.type !== 'comment');
+		if (members.length !== 1 || members[0]?.type !== 'type_identifier') return undefined;
+		names.push(members[0].text);
+	}
+	return names.length > 0 ? names : undefined;
 }
 
 // Detect embedded fields or interface elements.

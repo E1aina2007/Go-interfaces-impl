@@ -1,7 +1,7 @@
 package shapes
 
-// Unsupported declarations and a methodless slice below should show no annotation.
-// 以下不支持的声明及没有方法的切片类型预期不显示实现关系标记
+// Unsupported declarations and methodless generic and slice types show no annotation.
+// 以下不支持的声明及没有方法的泛型结构体和切片类型预期不显示实现关系标记
 
 // Any is an empty interface.
 // Any 是空接口
@@ -13,8 +13,8 @@ type Number interface {
 	~int | ~float64
 }
 
-// Pair is a generic struct.
-// Pair 是泛型结构体
+// Pair is a generic struct with no methods or reported interface matches.
+// Pair 是没有方法及语言服务报告的接口匹配的泛型结构体
 type Pair[T any] struct {
 	Left, Right T
 }

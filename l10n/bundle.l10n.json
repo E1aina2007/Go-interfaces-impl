@@ -39,8 +39,8 @@
   "Save Go module and workspace configuration files before querying.": "Save Go module and workspace configuration files before querying.",
   "Select a Go source document.": "Select a Go source document.",
   "No go.mod was found for the selected file.": "No go.mod was found for the selected file.",
-  "Select a named type or interface. Its type reference must resolve unambiguously within 32 declarations; pointer types and generic instances are not supported.": "Select a named type or interface. Its type reference must resolve unambiguously within 32 declarations; pointer types and generic instances are not supported.",
+  "Select a supported named type or interface. Its type reference must resolve unambiguously within 32 declarations.": "Select a supported named type or interface. Its type reference must resolve unambiguously within 32 declarations.",
   "This command requires a concrete named type.": "This command requires a concrete named type.",
   "This command requires an interface type.": "This command requires an interface type.",
-  "Generic declarations, constraint interfaces and empty interfaces are not supported by this query path.": "Generic declarations, constraint interfaces and empty interfaces are not supported by this query path."
+  "Generic interfaces, embedded generic structs, constraint interfaces and empty interfaces are not supported by this query path.": "Generic interfaces, embedded generic structs, constraint interfaces and empty interfaces are not supported by this query path."
 }

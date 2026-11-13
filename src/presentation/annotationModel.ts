@@ -128,7 +128,11 @@ export function createAnnotations(
 	const occurrences = new Map<string, number>();
 	const items: Annotation[] = [];
 	for (const declaration of file.declarations) {
-		if (declaration.generic || declaration.kind === 'unsupported') {
+		if (
+			declaration.kind === 'unsupported' ||
+			(declaration.generic &&
+				(declaration.kind !== 'struct' || declaration.embedded || declaration.alias))
+		) {
 			continue;
 		}
 		if (declaration.kind !== 'reference' && (declaration.constraint || declaration.empty)) {

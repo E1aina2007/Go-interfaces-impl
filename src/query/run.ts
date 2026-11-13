@@ -3,6 +3,7 @@ import { Location, l10n, workspace, type CancellationToken, type Position, type 
 import type { GoProvider } from '../language/provider';
 import { belongsToModule, findModule } from '../workspace/module';
 import { TestingFilter } from './filter';
+import { GenericRelations, supportsType } from './generics';
 import {
 	GoSyntaxError,
 	StaleQueryError,
@@ -67,7 +68,7 @@ export async function runQuery(
 	if (!subject) {
 		throw new Error(
 			l10n.t(
-				'Select a named type or interface. Its type reference must resolve unambiguously within 32 declarations; pointer types and generic instances are not supported.',
+				'Select a supported named type or interface. Its type reference must resolve unambiguously within 32 declarations.',
 			),
 		);
 	}
@@ -79,14 +80,10 @@ export async function runQuery(
 				: l10n.t('This command requires an interface type.'),
 		);
 	}
-	if (
-		subject.declaration.generic ||
-		subject.declaration.constraint ||
-		subject.declaration.empty
-	) {
+	if (!supportsType(subject.declaration)) {
 		throw new Error(
 			l10n.t(
-				'Generic declarations, constraint interfaces and empty interfaces are not supported by this query path.',
+				'Generic interfaces, embedded generic structs, constraint interfaces and empty interfaces are not supported by this query path.',
 			),
 		);
 	}
@@ -109,6 +106,7 @@ export async function runQuery(
 		}
 		return result;
 	};
+	const generics = new GenericRelations(provider, resolver, read, belongs, token, check);
 	for (const location of locations) {
 		check();
 		if (location.uri.scheme !== 'file') {
@@ -133,7 +131,7 @@ export async function runQuery(
 		if ((match.declaration.kind === 'interface') === (direction === 'interface')) {
 			continue;
 		}
-		if (match.declaration.generic || match.declaration.constraint || match.declaration.empty) {
+		if (!supportsType(match.declaration)) {
 			skipped++;
 			continue;
 		}
@@ -147,6 +145,10 @@ export async function runQuery(
 			continue;
 		}
 		seen.add(identity);
+		if (!(await generics.supports(subject, match))) {
+			skipped++;
+			continue;
+		}
 		matches.set(identity, match);
 	}
 	const candidates = [...matches.values()];

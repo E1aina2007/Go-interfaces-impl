@@ -39,7 +39,7 @@ go run .
 | ----------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------- |
 | `shapes/shapes.go`            | 直接声明、值与指针接收者     | `Shape` 显示 `Circle`、`Rect`、`Square`；三个 struct 各自显示 `Shape`                              |
 | `shapes/shapes.go`            | 别名与具名类型定义           | `Figure` 等同 `Shape`；`Box` 等同 `Rect`；`Tile` 和 `Plain` 不显示                                 |
-| `shapes/unsupported.go`       | 空接口、约束、泛型、复合类型 | 全部不显示名称与图标                                                                               |
+| `shapes/unsupported.go`       | 不支持的接口及没有方法的类型 | 空接口、约束、泛型接口跳过；没有方法的泛型 Pair 与 Names 没有匹配，不显示名称与图标                |
 | `stream/stream.go`            | 嵌入接口与菱形嵌入           | `ReadWriteCloser` 只显示 `File`；`Reader` 显示 `File`、`Pipe`、`Source`                            |
 | `reset/reset.go`              | 不同声明的同名方法           | `Machine` 显示 `Both`、`Clearer`、`Resetter`                                                       |
 | `store/memory/memory.go`      | 跨包实现、跨包别名           | `Memory` 显示 `Store`；`Local` 解析为 `Store`                                                      |
@@ -53,10 +53,15 @@ go run .
 | `defined/sources_test.go`     | 函数类型的测试来源           | 开启过滤隐藏 `TestFunc`、`TestMethodFunc`；关闭过滤后 `Text` 显示 13 个实现                        |
 | `defined/uncertain.go`        | 已确认来源与其他未知接收者   | `Runner` 保留 `RunFunc` 且无问号；`Holder`、`TestRunFunc` 保留并标记 `?`                           |
 | `defined/shadow/shadow.go`    | 遮蔽预声明类型名称           | `Local` 沿本地 `int` 解析为函数类型，实现 `Renderable`，不误判为基础类型                           |
+| `generics/types.go`           | 泛型直接方法与参数改名       | `Box`、`PointerBox` 均实现 `Label`，接收者改名为 U 不影响结果；值与指针形式不重复计数              |
+| `generics/types.go`           | 缺少方法与依赖类型参数       | `Missing` 无匹配；`Dependent` 的必要方法签名依赖 U，关系计入不支持数量，关闭过滤也不显示           |
+| `generics/sources_test.go`    | 泛型类型的测试声明来源       | 过滤开启时 Label 显示 Box、PointerBox；关闭后增加 TestBox，未确认数量为 0                          |
 
 `*_test.go` 是人工核对测试来源过滤的声明样例，不包含单元测试函数，也无需执行 `go test`。切换 **Go Interfaces: 切换测试来源过滤** 后，在 `store/store.go` 的 `Store` 上重新查看结果；语言服务是否返回测试变体位置取决于当前加载状态，不能仅凭零项结果认定不存在实现。
 
 ## 交互检查
+
+泛型支持只覆盖无匿名嵌入的直接 struct，以及签名不依赖接收者类型参数的必要方法。`DependentParameter` 的参数类型依赖 U，因此与 `LabelWith` 的关系也应计入不支持。泛型接口、泛型别名和新定义引用仍不支持；泛型实例按声明归并，不单独计数。必要方法证据通过真实 provider 查询验证，缺失或超预算时不放行该泛型关系。
 
 - 连续输入时，已显示的名称和图标保持不变，输入停止后刷新；刷新期间旧名称不可点击
 - 制造临时语法错误时，当前文件保留旧展示；其他文件的语法错误只让相关候选计入无法读取数量

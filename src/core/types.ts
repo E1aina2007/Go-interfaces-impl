@@ -35,6 +35,10 @@ export interface GoInterfaceEmbedding {
 export interface GoMethod extends GoIdentifier {
 	readonly receiver: number;
 	readonly generic: boolean;
+	readonly receiverTypeParameters: readonly string[] | undefined;
+	// Undefined means the receiver or signature could not be classified safely.
+	// undefined 表示无法可靠分类接收者或方法签名
+	readonly signatureUsesTypeParameters: boolean | undefined;
 }
 
 interface GoTypeReference extends GoTypeName {
