@@ -21,7 +21,7 @@
 
 ## Overview
 
-Go interfaces are implemented implicitly. Go Interfaces brings type-to-interface relationships next to their declarations so you can understand the code and navigate between related types. Its interaction model is inspired by GoLand.
+Go uses implicit interface implementation, which makes types flexible to use but makes their relationships harder to spot. Go Interfaces places those relationships next to declarations so you can understand and navigate the code more easily.
 
 ## Features
 
@@ -50,30 +50,11 @@ This extension uses language information exposed through the public VS Code API.
 
 ## Example
 
-This `Shape` interface and `Rect` type show the relationship the extension surfaces:
+The screenshot shows `Rect` implementing the `Shape` interface. It uses Simplified Chinese UI labels; in English, the CodeLens reads “Implements (1) | Shape”.
 
-```go
-package shapes
+![Go Interfaces showing Rect implementing Shape in the Simplified Chinese UI](../media/examples/example.zh-cn.png)
 
-type Shape interface {
-    Area() float64
-    Perimeter() float64
-}
-
-type Rect struct {
-    W, H float64
-}
-
-func (r Rect) Area() float64 {
-    return r.W * r.H
-}
-
-func (r Rect) Perimeter() float64 {
-    return 2 * (r.W + r.H)
-}
-```
-
-The extension shows “Implemented by (1) | Rect” above `Shape` and “Implements (1) | Shape” above `Rect`. Select a related name to navigate. See the [full multi-type acceptance example](../examples/acceptance/shapes/shapes.go).
+See the [full multi-type acceptance example](../examples/acceptance/shapes/shapes.go).
 
 ## Using the extension
 
