@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { l10n } from 'vscode';
 import { Language, Parser, type Node } from '@vscode/tree-sitter-wasm';
 import type {
 	GoDeclaration,
@@ -20,11 +21,11 @@ export class GoSyntax {
 		this.loading ??= this.initialize();
 		await this.loading;
 		if (this.disposed || !this.parser) {
-			throw new Error('Go syntax parser is closed.');
+			throw new Error(l10n.t('Go syntax parser is closed.'));
 		}
 		const tree = this.parser.parse(text);
 		if (!tree) {
-			throw new Error('Unable to parse the Go document.');
+			throw new Error(l10n.t('Unable to parse the Go document.'));
 		}
 		try {
 			const declarations: GoDeclaration[] = [];

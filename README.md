@@ -36,6 +36,8 @@ Go 的 interface 采用隐式实现。Go Interfaces 将类型与接口之间的�
 
 当前支持 struct、具名函数、基础类型、切片、数组、map 和 channel 与 interface 的实现关系。
 
+扩展内置文案跟随 VS Code 的显示语言：简体中文界面显示中文，英文界面显示英文，其他语言回退为英文。在 VS Code 中更改显示语言后，按提示重启即可生效。
+
 ## 快速开始
 
 1. 从 [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=E1aina2007.go-interfaces-impl) 安装 **Go Interfaces**。

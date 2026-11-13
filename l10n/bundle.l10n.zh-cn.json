@@ -1,4 +1,10 @@
 {
+  "Go Interfaces: {0}": "Go Interfaces：{0}",
+  "Invalid Go implementation retry arguments": "重试 Go 实现关系的命令参数无效",
+  "Invalid Go implementation navigation arguments": "跳转 Go 实现关系的命令参数无效",
+  "Invalid Go implementation list arguments": "查看 Go 实现关系列表的命令参数无效",
+  "Go syntax parser is closed.": "Go 语法解析器已关闭。",
+  "Unable to parse the Go document.": "无法解析 Go 文件。",
   "The Go language service timed out. Try again after it finishes loading.": "Go 语言服务响应超时，请在加载完成后重试。",
   "The Go language service is not ready.": "Go 语言服务尚未就绪。",
   "Install and configure the official Go extension (golang.go).": "请安装并配置官方 Go 扩展（golang.go）。",

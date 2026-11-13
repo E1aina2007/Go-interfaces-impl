@@ -36,6 +36,8 @@ Go interfaces are implemented implicitly. Go Interfaces brings type-to-interface
 
 The extension currently recognizes relationships for structs, named functions, basic types, slices, arrays, maps, and channels.
 
+Built-in extension messages follow the VS Code display language: Simplified Chinese uses Chinese, English uses English, and other languages fall back to English. After changing the display language in VS Code, restart as prompted to apply it.
+
 ## Quick start
 
 1. Install **Go Interfaces** from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=E1aina2007.go-interfaces-impl).

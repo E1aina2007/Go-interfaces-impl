@@ -1,4 +1,4 @@
-import { commands, window, type Disposable, type LogOutputChannel } from 'vscode';
+import { commands, l10n, window, type Disposable, type LogOutputChannel } from 'vscode';
 import { StaleQueryError, type QueryResult } from '../query/model';
 import type { ImplementationQueries } from '../query/service';
 import type { AnnotationDocuments } from './annotationDocuments';
@@ -79,7 +79,7 @@ export class AnnotationCommands implements Disposable {
 				return;
 			}
 			if (!isRetryArguments(args)) {
-				throw new Error('Invalid Go implementation retry arguments');
+				throw new Error(l10n.t('Invalid Go implementation retry arguments'));
 			}
 			const [source, version, offset] = args;
 			const state = this.documents.find(source);
@@ -125,7 +125,7 @@ export class AnnotationCommands implements Disposable {
 	private async navigate(args: unknown[]): Promise<void> {
 		try {
 			if (!isOpenArguments(args)) {
-				throw new Error('Invalid Go implementation navigation arguments');
+				throw new Error(l10n.t('Invalid Go implementation navigation arguments'));
 			}
 			const result = this.current(args);
 			const match = result.matches.find((item) => item.id === args[4]);
@@ -145,7 +145,7 @@ export class AnnotationCommands implements Disposable {
 	private async showAll(args: unknown[]): Promise<void> {
 		try {
 			if (!isRelationArguments(args)) {
-				throw new Error('Invalid Go implementation list arguments');
+				throw new Error(l10n.t('Invalid Go implementation list arguments'));
 			}
 			const result = this.current(args);
 			const selected = await window.showQuickPick(

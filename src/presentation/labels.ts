@@ -27,5 +27,5 @@ export function unverifiedNote(result: QueryResult, id: string): string {
 }
 
 export function errorMessage(error: unknown): string {
-	return `Go Interfaces: ${error instanceof Error ? error.message : String(error)}`;
+	return l10n.t('Go Interfaces: {0}', error instanceof Error ? error.message : String(error));
 }
