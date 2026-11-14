@@ -92,6 +92,8 @@ Go 的 interface 采用隐式实现，这使得其能被更灵活地使用，但
 
 欢迎通过 [GitHub Issues](https://github.com/E1aina2007/Go-interfaces-impl/issues) 提交问题或建议。发布者 ID 为 `E1aina2007`；版本记录见 [CHANGELOG](CHANGELOG.md)，自动发布流程见 [Release 工作流](.github/workflows/release.yml)。
 
+发布前，在 CHANGELOG 中添加 `## 版本号 — YYYY-MM-DD` 章节，并同步 `package.json` 和 `package-lock.json` 中的版本号。引用式链接的定义应放在对应版本章节内。合入 `main` 后，工作流校验章节内容并将其作为 GitHub Release 说明；已有 Release 不会自动更新。
+
 ## 许可与致谢
 
 本项目采用 [MIT License](LICENSE)。

@@ -92,6 +92,8 @@ Related names above declarations are controlled by VS Code's `editor.codeLens` s
 
 Report bugs or suggest improvements on [GitHub Issues](https://github.com/E1aina2007/Go-interfaces-impl/issues). The Marketplace publisher ID is `E1aina2007`. See the [changelog](../CHANGELOG.md) for version history and the [release workflow](../.github/workflows/release.yml) for automated publishing.
 
+Before a release, add a `## version — YYYY-MM-DD` section to the changelog and synchronize the versions in `package.json` and `package-lock.json`. Keep reference-style link definitions within the relevant version section. After the change reaches `main`, the workflow validates the section and uses it as the GitHub Release notes; existing releases are not updated automatically.
+
 ## License and acknowledgements
 
 This project is licensed under the [MIT License](../LICENSE).
