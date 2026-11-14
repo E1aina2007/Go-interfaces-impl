@@ -38,7 +38,7 @@ The extension currently recognizes relationships for structs, named functions, b
 
 Non-generic named structs support single-level pointer aliases and ordinary alias chains, such as `type P = *T` and `type Q = P`, including parentheses and cross-package references. Results, counts, and navigation targets share the original struct declaration's identity. Defined pointer types, double pointers, pointers to interfaces, and pointers to generic instantiations remain unsupported.
 
-Generic structs support bidirectional queries with ordinary non-empty interfaces when they have no embedded fields and the required direct methods have signatures independent of receiver type parameters. Both value and pointer receivers are supported; results share the type declaration's identity.
+Directly declared generic structs, named functions, slices, arrays, maps, and channels support bidirectional queries with ordinary non-empty interfaces when they have no embedded fields and the required direct methods have signatures independent of receiver type parameters. Type parameters in the underlying type do not disqualify an independent method, such as `Len() int` on `List[T] []T`; other methods that depend on type parameters do not affect this relation either. Both value and pointer receivers are supported; results share the type declaration's identity.
 
 Built-in extension messages follow the VS Code display language: Simplified Chinese uses Chinese, English uses English, and other languages fall back to English. After changing the display language in VS Code, restart as prompted to apply it.
 
