@@ -4,7 +4,7 @@
   "publisher": "E1aina2007",
   "description": "%extension.description%",
   "icon": "media/icon.png",
-  "version": "0.0.9",
+  "version": "0.1.0",
   "private": true,
   "license": "MIT",
   "repository": {
