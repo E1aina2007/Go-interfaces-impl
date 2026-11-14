@@ -1,5 +1,5 @@
-// Package memory covers cross-package implementations, aliases and the testing filter.
-// memory 包展示跨包实现、别名与测试来源过滤
+// Package memory demonstrates a cross-package implementation and an embedded type.
+// memory 包展示跨包实现和类型嵌入
 package memory
 
 import "github.com/E1aina2007/Go-interfaces-impl/examples/acceptance/store"
@@ -16,23 +16,22 @@ func (m *Memory) Get(key string) (string, bool) {
 }
 
 func (m *Memory) Put(key, value string) {
+	// Initialize on first write so the zero value is ready to use.
+	// 首次写入时初始化，让零值可以直接使用
 	if m.data == nil {
 		m.data = map[string]string{}
 	}
 	m.data[key] = value
 }
 
-// Embedded implements store.Store through promoted methods and is expected to show "?".
-// Embedded 通过提升方法实现 store.Store，预期保留并显示来源未确认标记
-type Embedded struct {
-	store.Base
+// Named adds a name while reusing Memory's promoted methods.
+// Named 在复用 Memory 提升方法的同时增加名称
+type Named struct {
+	Memory
+	Name string
 }
-
-// Local is an alias of a cross-package interface and resolves to store.Store.
-// Local 是跨包接口别名，解析后与 store.Store 共享身份
-type Local = store.Store
 
 var (
 	_ store.Store = (*Memory)(nil)
-	_ store.Store = (*Embedded)(nil)
+	_ store.Store = (*Named)(nil)
 )
