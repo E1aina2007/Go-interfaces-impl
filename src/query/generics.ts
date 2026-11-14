@@ -9,10 +9,12 @@ const methodQueryLimit = 32;
 const methodLocationLimit = 256;
 
 export function supportsType(type: GoType): boolean {
+	if (type.constraint || type.empty) return false;
+	if (!type.generic) return true;
 	return (
-		!type.constraint &&
-		!type.empty &&
-		(!type.generic || (type.kind === 'struct' && !type.embedded && !type.alias))
+		!type.alias &&
+		!type.embedded &&
+		['struct', 'function', 'array', 'slice', 'map', 'channel'].includes(type.kind)
 	);
 }
 

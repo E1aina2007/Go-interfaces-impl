@@ -1,5 +1,6 @@
 import { Range, window, workspace, type TextDocument } from 'vscode';
 import type { GoFile } from '../core/types';
+import { supportsType } from '../query/generics';
 import type { QueryResult } from '../query/model';
 
 export const openRelation = 'goInterfaces.openRelation';
@@ -128,14 +129,10 @@ export function createAnnotations(
 	const occurrences = new Map<string, number>();
 	const items: Annotation[] = [];
 	for (const declaration of file.declarations) {
-		if (
-			declaration.kind === 'unsupported' ||
-			(declaration.generic &&
-				(declaration.kind !== 'struct' || declaration.embedded || declaration.alias))
-		) {
-			continue;
-		}
-		if (declaration.kind !== 'reference' && (declaration.constraint || declaration.empty)) {
+		if (declaration.kind === 'unsupported') continue;
+		if (declaration.kind === 'reference') {
+			if (declaration.generic) continue;
+		} else if (!supportsType(declaration)) {
 			continue;
 		}
 		const occurrence = occurrences.get(declaration.name) ?? 0;
