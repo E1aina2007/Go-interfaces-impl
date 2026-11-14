@@ -28,7 +28,3 @@ type Sizer[T Number] interface {
 // Names is a supported named slice with no methods or reported interface matches.
 // Names 是受支持的具名切片，但没有方法及语言服务报告的接口匹配
 type Names []string
-
-// RectPointer is a pointer alias.
-// RectPointer 是指针别名
-type RectPointer = *Rect

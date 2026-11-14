@@ -8,15 +8,15 @@ type RunFunc func()
 
 func (f RunFunc) Run() { f() }
 
-// Pointer aliases remain outside the resolver's scope, so this origin stays unverified.
-// 指针别名仍超出解析范围，因此此方法来源保持未确认
+// Resolve the pointer alias to Holder when classifying this production method.
+// 判定生产方法来源时，将指针别名解析为 Holder
 type Holder struct{}
 type HolderPointer = *Holder
 
 func (HolderPointer) Run() {}
 
-// Unknown sources must not exclude a relation based only on the observed test method.
-// 存在未知来源时，不能仅凭已观察到的测试方法删除关系
+// With all method origins classified, test-only implementations are hidden.
+// 方法来源全部确认后，过滤仅由测试方法提供的实现
 type TestRunFunc func()
 
 var (

@@ -140,7 +140,7 @@ function hasEmbedding(type: Node): boolean {
 
 export function declaration(node: Node): GoDeclaration | undefined {
 	const name = node.childForFieldName('name');
-	const type = unparenthesized(node.childForFieldName('type'));
+	let type = unparenthesized(node.childForFieldName('type'));
 	if (!name || !type) {
 		return undefined;
 	}
@@ -151,13 +151,21 @@ export function declaration(node: Node): GoDeclaration | undefined {
 		generic: node.childForFieldName('type_parameters') !== null || type.type === 'generic_type',
 		alias: node.type === 'type_alias',
 	};
+	const pointer = type.type === 'pointer_type';
+	// Unwrap only one pointer in aliases; the resolver validates the named target.
+	// 仅在别名中展开一层指针，由解析器验证具名目标
+	if (pointer && base.alias && !base.generic) {
+		type = unparenthesized(type.namedChildren.find((item) => item?.type !== 'comment')) ?? type;
+	}
 	if (type.type === 'type_identifier' || type.type === 'qualified_type') {
 		return {
 			...base,
 			kind: 'reference',
 			target: type.childForFieldName('name')?.startIndex ?? type.startIndex,
+			pointer,
 		};
 	}
+	if (pointer) return { ...base, kind: 'unsupported' };
 	// Classify supported underlying type forms.
 	// 分类支持的底层类型形式
 	const kinds: Readonly<Record<string, TypeKind>> = {

@@ -44,6 +44,7 @@ export interface GoMethod extends GoIdentifier {
 interface GoTypeReference extends GoTypeName {
 	readonly kind: 'reference';
 	readonly target: number;
+	readonly pointer: boolean;
 }
 
 interface UnsupportedGoType extends GoTypeName {

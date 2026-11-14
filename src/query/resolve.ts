@@ -3,9 +3,10 @@ import type { GoType } from '../core/types';
 import type { GoProvider } from '../language/provider';
 import { canonicalUri, fileKey } from '../workspace/module';
 import { GoSyntaxError, type CapturedFile, type LocatedMethod, type LocatedType } from './model';
+import { referenceTarget, sameReference, type ResolvedType } from './typeReference';
 
 export class TypeResolver {
-	private readonly resolved = new Map<string, LocatedType>();
+	private readonly resolved = new Map<string, ResolvedType>();
 
 	constructor(
 		private readonly provider: GoProvider,
@@ -13,8 +14,8 @@ export class TypeResolver {
 		private readonly token: CancellationToken,
 	) {}
 
-	resolve(location: Location): Promise<LocatedType | undefined> {
-		return this.follow(location, new Set());
+	async resolve(location: Location): Promise<LocatedType | undefined> {
+		return (await this.follow(location, new Set()))?.type;
 	}
 
 	async resolveReference(location: Location): Promise<LocatedType | undefined> {
@@ -23,27 +24,27 @@ export class TypeResolver {
 		if (file.syntax.declarations.some((item) => item.start <= offset && offset < item.end)) {
 			return this.resolve(location);
 		}
-		let result: LocatedType | undefined;
-		// Merge definitions only when they resolve to the same canonical type.
-		// 仅合并解析到同一规范类型的定义
+		let result: ResolvedType | undefined;
+		// Merge definitions only when canonical identity and pointer shape agree.
+		// 仅在规范身份与指针形态一致时合并定义
 		for (const definition of await this.provider.definitions(
 			location.uri,
 			location.range.start,
 			this.token,
 		)) {
-			const candidate = await this.resolve(definition);
-			if (!candidate || (result && result.id !== candidate.id)) {
+			const candidate = await this.follow(definition, new Set());
+			if (!candidate || (result && !sameReference(result, candidate))) {
 				return undefined;
 			}
 			result = candidate;
 		}
-		return result;
+		return result?.type;
 	}
 
 	private async follow(
 		location: Location,
 		visited: ReadonlySet<string>,
-	): Promise<LocatedType | undefined> {
+	): Promise<ResolvedType | undefined> {
 		if (this.token.isCancellationRequested) {
 			throw new CancellationError();
 		}
@@ -109,25 +110,25 @@ export class TypeResolver {
 				file.document.positionAt(declaration.target),
 				this.token,
 			);
-			let target: LocatedType | undefined;
+			let resolvedTarget: ResolvedType | undefined;
 			for (const definition of definitions) {
 				const candidate = await this.follow(definition, next);
-				if (!candidate || (target && target.id !== candidate.id)) {
+				if (!candidate || (resolvedTarget && !sameReference(resolvedTarget, candidate))) {
 					return undefined;
 				}
-				target = candidate;
+				resolvedTarget = candidate;
 			}
-			// Generic aliases and defined references need instance-aware identities.
-			// 泛型别名和新定义引用需要能区分实例的身份
-			if (!target || target.declaration.generic) {
+			const reference = referenceTarget(declaration, resolvedTarget);
+			if (!reference) {
 				return undefined;
 			}
 			// Resolve aliases to their target type.
 			// 将别名解析为目标类型
 			if (declaration.alias) {
-				this.resolved.set(id, target);
-				return target;
+				this.resolved.set(id, reference);
+				return reference;
 			}
+			const target = reference.type;
 			type = {
 				name: declaration.name,
 				start: declaration.start,
@@ -180,7 +181,8 @@ export class TypeResolver {
 			methods,
 			interfaces,
 		};
-		this.resolved.set(id, result);
-		return result;
+		const resolved = { type: result, pointer: false };
+		this.resolved.set(id, resolved);
+		return resolved;
 	}
 }
