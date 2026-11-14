@@ -3,6 +3,7 @@ import { Location, l10n, workspace, type CancellationToken, type Position, type 
 import type { GoProvider } from '../language/provider';
 import { belongsToModule, findModule } from '../workspace/module';
 import { TestingFilter } from './filter';
+import { GenericRelations, supportsType } from './generics';
 import {
 	GoSyntaxError,
 	StaleQueryError,
@@ -67,7 +68,7 @@ export async function runQuery(
 	if (!subject) {
 		throw new Error(
 			l10n.t(
-				'Select a named type or interface. Its type reference must resolve unambiguously within 32 declarations; pointer types and generic instances are not supported.',
+				'Select a supported named type or interface. Its type reference must resolve unambiguously within 32 declarations.',
 			),
 		);
 	}
@@ -79,19 +80,15 @@ export async function runQuery(
 				: l10n.t('This command requires an interface type.'),
 		);
 	}
-	if (
-		subject.declaration.generic ||
-		subject.declaration.constraint ||
-		subject.declaration.empty
-	) {
+	if (!supportsType(subject.declaration)) {
 		throw new Error(
 			l10n.t(
-				'Generic declarations, constraint interfaces and empty interfaces are not supported by this query path.',
+				'Generic interfaces, embedded generic structs, constraint interfaces and empty interfaces are not supported by this query path.',
 			),
 		);
 	}
-	// Query from the original reference so the Go extension retains the caller's build context.
-	// 从原始引用位置查询，保留 Go 扩展为调用方选择的构建上下文
+	// Query from the original reference to preserve its build context.
+	// 从原始引用位置查询以保留构建上下文
 	const locations = await provider.implementations(uri, position, token);
 	const hideTesting = workspace
 		.getConfiguration('goInterfaces', uri)
@@ -109,6 +106,7 @@ export async function runQuery(
 		}
 		return result;
 	};
+	const generics = new GenericRelations(provider, resolver, read, belongs, token, check);
 	for (const location of locations) {
 		check();
 		if (location.uri.scheme !== 'file') {
@@ -128,17 +126,17 @@ export async function runQuery(
 			skipped++;
 			continue;
 		}
-		// Interface-to-interface results are outside this relation scope, not unsupported failures.
-		// 接口之间的结果不属于本插件的关系范围，也不是不支持导致的失败
+		// Skip relations between declarations of the same kind.
+		// 跳过同类声明之间的关系
 		if ((match.declaration.kind === 'interface') === (direction === 'interface')) {
 			continue;
 		}
-		if (match.declaration.generic || match.declaration.constraint || match.declaration.empty) {
+		if (!supportsType(match.declaration)) {
 			skipped++;
 			continue;
 		}
-		// Recheck the canonical type so a local alias cannot import a dependency into module results.
-		// 再次核对规范类型，避免通过本地别名把依赖类型加入当前模块结果
+		// Confirm the resolved declaration belongs to the current module.
+		// 确认解析后的声明属于当前模块
 		if (!(await belongs(match.location.uri.toString()))) {
 			continue;
 		}
@@ -147,11 +145,15 @@ export async function runQuery(
 			continue;
 		}
 		seen.add(identity);
+		if (!(await generics.supports(subject, match))) {
+			skipped++;
+			continue;
+		}
 		matches.set(identity, match);
 	}
 	const candidates = [...matches.values()];
-	// Disabling filtering also skips embedded-interface expansion and method-origin provider calls.
-	// 关闭过滤时也跳过嵌入接口展开和方法来源的语言服务调用
+	// Filter candidates by method source when test filtering is enabled.
+	// 启用测试过滤时按方法来源筛选候选类型
 	const filtered = hideTesting
 		? await new TestingFilter(provider, resolver, read, belongs, token).apply(
 				subject,
@@ -184,8 +186,8 @@ async function candidate(
 	try {
 		return await resolver.resolve(location);
 	} catch (error) {
-		// A candidate file being edited must not fail the whole query; it is counted separately.
-		// 正在编辑的候选文件不应使整个查询失败，单独计数并在摘要中显示
+		// Count files with syntax errors as unreadable candidates.
+		// 将存在语法错误的文件计为无法读取的候选
 		if (error instanceof GoSyntaxError) {
 			return 'unreadable';
 		}

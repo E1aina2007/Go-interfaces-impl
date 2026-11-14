@@ -3,9 +3,10 @@ import type { GoType } from '../core/types';
 import type { GoProvider } from '../language/provider';
 import { canonicalUri, fileKey } from '../workspace/module';
 import { GoSyntaxError, type CapturedFile, type LocatedMethod, type LocatedType } from './model';
+import { referenceTarget, sameReference, type ResolvedType } from './typeReference';
 
 export class TypeResolver {
-	private readonly resolved = new Map<string, LocatedType>();
+	private readonly resolved = new Map<string, ResolvedType>();
 
 	constructor(
 		private readonly provider: GoProvider,
@@ -13,8 +14,8 @@ export class TypeResolver {
 		private readonly token: CancellationToken,
 	) {}
 
-	resolve(location: Location): Promise<LocatedType | undefined> {
-		return this.follow(location, new Set());
+	async resolve(location: Location): Promise<LocatedType | undefined> {
+		return (await this.follow(location, new Set()))?.type;
 	}
 
 	async resolveReference(location: Location): Promise<LocatedType | undefined> {
@@ -23,27 +24,27 @@ export class TypeResolver {
 		if (file.syntax.declarations.some((item) => item.start <= offset && offset < item.end)) {
 			return this.resolve(location);
 		}
-		let result: LocatedType | undefined;
-		// Multiple definition locations are usable only when they resolve to the same canonical type.
-		// 多个定义位置只有归并为同一规范类型时才可使用，避免任意选取一个目标
+		let result: ResolvedType | undefined;
+		// Merge definitions only when canonical identity and pointer shape agree.
+		// 仅在规范身份与指针形态一致时合并定义
 		for (const definition of await this.provider.definitions(
 			location.uri,
 			location.range.start,
 			this.token,
 		)) {
-			const candidate = await this.resolve(definition);
-			if (!candidate || (result && result.id !== candidate.id)) {
+			const candidate = await this.follow(definition, new Set());
+			if (!candidate || (result && !sameReference(result, candidate))) {
 				return undefined;
 			}
 			result = candidate;
 		}
-		return result;
+		return result?.type;
 	}
 
 	private async follow(
 		location: Location,
 		visited: ReadonlySet<string>,
-	): Promise<LocatedType | undefined> {
+	): Promise<ResolvedType | undefined> {
 		if (this.token.isCancellationRequested) {
 			throw new CancellationError();
 		}
@@ -58,8 +59,8 @@ export class TypeResolver {
 		let declaration = file.syntax.declarations.find(
 			(item) => item.start <= offset && offset < item.end,
 		);
-		// Follow the provider to builtin.go before recognizing scalars, so shadowed names stay semantic.
-		// 先沿语言服务定位 builtin.go 再识别基础类型，避免误判被遮蔽的预声明名称
+		// Resolve predeclared types through builtin.go.
+		// 通过 builtin.go 解析预声明类型
 		if (
 			declaration?.kind === 'reference' &&
 			/\/src\/builtin\/builtin\.go$/i.test(location.uri.path) &&
@@ -84,8 +85,8 @@ export class TypeResolver {
 		if (!declaration || declaration.kind === 'unsupported') {
 			return undefined;
 		}
-		// Physical file identity merges symlink paths while keeping distinct declarations separate.
-		// 物理文件身份用于归并符号链接路径，同时保留不同声明之间的区别
+		// Identify types by canonical file path and declaration offset.
+		// 使用规范文件路径和声明偏移量标识类型
 		const fileId = fileKey(await canonicalUri(location.uri.toString()));
 		const id = `${fileId}:${declaration.start}`;
 		if (visited.has(id) || visited.size >= 32) {
@@ -109,23 +110,25 @@ export class TypeResolver {
 				file.document.positionAt(declaration.target),
 				this.token,
 			);
-			let target: LocatedType | undefined;
+			let resolvedTarget: ResolvedType | undefined;
 			for (const definition of definitions) {
 				const candidate = await this.follow(definition, next);
-				if (!candidate || (target && target.id !== candidate.id)) {
+				if (!candidate || (resolvedTarget && !sameReference(resolvedTarget, candidate))) {
 					return undefined;
 				}
-				target = candidate;
+				resolvedTarget = candidate;
 			}
-			if (!target) {
+			const reference = referenceTarget(declaration, resolvedTarget);
+			if (!reference) {
 				return undefined;
 			}
-			// Aliases share their target identity; a type definition keeps its own methods and identity.
-			// 别名与目标共享身份，类型定义保留自身身份并由语言服务判断自身方法集
+			// Resolve aliases to their target type.
+			// 将别名解析为目标类型
 			if (declaration.alias) {
-				this.resolved.set(id, target);
-				return target;
+				this.resolved.set(id, reference);
+				return reference;
 			}
+			const target = reference.type;
 			type = {
 				name: declaration.name,
 				start: declaration.start,
@@ -137,8 +140,8 @@ export class TypeResolver {
 				constraint: target.declaration.constraint,
 				embedded: target.declaration.embedded,
 			};
-			// Reuse interface requirements without inferring method inheritance for concrete types.
-			// 复用接口要求，不据此推断具体类型的方法继承
+			// Use the target's methods and interfaces for this reference.
+			// 使用该引用目标的方法和接口
 			methods = target.methods;
 			interfaces = target.interfaces;
 		} else {
@@ -178,7 +181,8 @@ export class TypeResolver {
 			methods,
 			interfaces,
 		};
-		this.resolved.set(id, result);
-		return result;
+		const resolved = { type: result, pointer: false };
+		this.resolved.set(id, resolved);
+		return resolved;
 	}
 }

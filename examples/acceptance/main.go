@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"strings"
 
 	"github.com/E1aina2007/Go-interfaces-impl/examples/acceptance/defined"
-	"github.com/E1aina2007/Go-interfaces-impl/examples/acceptance/reset"
+	"github.com/E1aina2007/Go-interfaces-impl/examples/acceptance/generics"
 	"github.com/E1aina2007/Go-interfaces-impl/examples/acceptance/shapes"
 	"github.com/E1aina2007/Go-interfaces-impl/examples/acceptance/store"
 	"github.com/E1aina2007/Go-interfaces-impl/examples/acceptance/store/memory"
@@ -14,10 +16,10 @@ import (
 // Use interfaces across packages so the example can also run as a standalone program.
 // 通过接口使用各包，使示例也能作为独立程序运行
 func main() {
-	var text defined.Text = defined.Func(func() string { return "function adapter" })
-	fmt.Printf("Text: %s\n", text.String())
+	var formatter defined.Formatter = defined.FormatterFunc(strings.ToUpper)
+	fmt.Printf("Format: %s\n", formatter.Format("go"))
 
-	var shape shapes.Shape = shapes.Rect{W: 3, H: 4}
+	var shape shapes.Shape = shapes.Rect{Width: 3, Height: 4}
 	fmt.Printf("Shape: area=%.0f perimeter=%.0f\n", shape.Area(), shape.Perimeter())
 
 	var data store.Store = &memory.Memory{}
@@ -25,17 +27,20 @@ func main() {
 	value, ok := data.Get("language")
 	fmt.Printf("Store: language=%s found=%t\n", value, ok)
 
-	var file stream.ReadWriteCloser = &stream.File{}
-	written, err := file.Write([]byte("Go"))
+	var buffer stream.ReadWriteCloser = &stream.Buffer{}
+	if _, err := buffer.Write([]byte("Go")); err != nil {
+		panic(err)
+	}
+	content, err := io.ReadAll(buffer)
 	if err != nil {
 		panic(err)
 	}
-	if err := file.Close(); err != nil {
+	if err := buffer.Close(); err != nil {
 		panic(err)
 	}
-	fmt.Printf("Stream: written=%d closed=true\n", written)
+	fmt.Printf("Stream: %s\n", content)
 
-	var machine reset.Both = &reset.Machine{}
-	machine.Reset()
-	fmt.Println("Reset: shared method satisfies both embedded interfaces")
+	box := generics.Box[string]{Name: "language", Value: "Go"}
+	var label generics.Label = box
+	fmt.Printf("Box: %s=%s\n", label.Label(), box.Value)
 }

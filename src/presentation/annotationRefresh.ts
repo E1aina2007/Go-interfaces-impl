@@ -80,8 +80,8 @@ export class AnnotationRefresh implements Disposable {
 			for (const editor of window.visibleTextEditors) {
 				await this.documents.load(editor.document);
 			}
-			// Debounce editor events and serialize queries for visible declarations, never the whole module.
-			// 合并编辑器事件并串行查询可见声明，不预先扫描整个模块
+			// Query visible declarations in a debounced, serialized refresh loop.
+			// 在防抖串行的刷新流程中查询可见声明
 			for (const state of this.documents.values()) {
 				for (const item of state.items) {
 					if (
@@ -108,8 +108,8 @@ export class AnnotationRefresh implements Disposable {
 							this.visible(state, item) &&
 							this.queries.isCurrent(result)
 						) {
-							// An empty successful result is complete too; do not query it again on each refresh.
-							// 成功的空结果也表示查询完成，避免每次刷新都重复查询
+							// Mark successful empty results as ready.
+							// 将成功的空结果标记为就绪
 							item.state = { kind: 'ready', result };
 						}
 					} catch (error) {

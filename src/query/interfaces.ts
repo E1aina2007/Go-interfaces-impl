@@ -12,8 +12,8 @@ export interface InterfaceMethodSet {
 
 export class InterfaceMethods {
 	private readonly resolved = new Map<string, InterfaceMethodSet>();
-	// Share the reference budget across all candidates in this query, including incomplete expansions.
-	// 当前查询的所有候选共用引用预算，未完整展开的分支也计入其中
+	// Count references against one query-wide budget.
+	// 所有引用共用当前查询的预算
 	private requested = 0;
 
 	constructor(
@@ -32,8 +32,8 @@ export class InterfaceMethods {
 		if (this.token.isCancellationRequested) {
 			throw new CancellationError();
 		}
-		// Cycles and unsupported targets leave requirements unknown, rather than proving an empty method set.
-		// 循环和不支持的目标表示要求尚未确认，不能据此断定方法集为空
+		// Mark cyclic or unsupported expansions as unresolved.
+		// 将循环或不支持的展开标记为未解析
 		if (
 			type.declaration.kind !== 'interface' ||
 			type.declaration.generic ||
@@ -47,8 +47,8 @@ export class InterfaceMethods {
 		if (cached) {
 			return cached;
 		}
-		// Track the current path so a shared ancestor in a diamond is not mistaken for a cycle.
-		// 只记录当前路径，避免将菱形嵌入中共用的上层接口误判为循环
+		// Track interface IDs on the current recursion path.
+		// 记录当前递归路径上的接口 ID
 		const next = new Set(visited);
 		next.add(type.id);
 		const methods = new Map<string, LocatedMethod>();
@@ -72,15 +72,15 @@ export class InterfaceMethods {
 			}
 			const embedded = await this.expand(target, next);
 			unresolved ||= embedded.unresolved;
-			// Deduplicate declaration identities, never method names or displayed signatures.
-			// 按声明身份去重，不使用方法名或展示签名判断同一个方法
+			// Deduplicate methods by declaration identity.
+			// 按声明身份去重方法
 			for (const method of embedded.methods) {
 				methods.set(method.id, method);
 			}
 		}
 		const result = { methods: [...methods.values()], unresolved };
-		// Partial expansion depends on the current path and remaining budget; do not cache it as complete.
-		// 部分展开依赖当前路径和剩余预算，不能将其作为完整结果缓存
+		// Cache only complete interface method sets.
+		// 只缓存完整的接口方法集
 		if (!unresolved) {
 			this.resolved.set(type.id, result);
 		}
@@ -91,8 +91,8 @@ export class InterfaceMethods {
 		try {
 			return await this.types.resolveReference(reference);
 		} catch (error) {
-			// An embedded interface in a file being edited stays an unknown requirement.
-			// 正在编辑的文件中的嵌入接口保留为未知要求
+			// Keep requirements unresolved when an embedded interface has syntax errors.
+			// 嵌入接口存在语法错误时保留为未解析状态
 			if (error instanceof GoSyntaxError) {
 				return undefined;
 			}

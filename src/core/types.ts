@@ -3,8 +3,8 @@ export type TypeKind =
 
 export interface GoIdentifier {
 	readonly name: string;
-	// Web Tree-sitter exposes UTF-16 string offsets, matching VS Code document offsets.
-	// Web Tree-sitter 提供 UTF-16 字符串偏移量，与 VS Code 文档偏移量一致
+	// Web Tree-sitter and VS Code both use UTF-16 offsets.
+	// Web Tree-sitter 与 VS Code 均使用 UTF-16 偏移量
 	readonly start: number;
 	readonly end: number;
 }
@@ -27,19 +27,24 @@ export interface GoInterfaceMethod extends GoIdentifier {
 
 export interface GoInterfaceEmbedding {
 	readonly owner: number;
-	// A null target preserves an unsupported requirement instead of implying that none exists.
-	// null 目标保留无法解析的要求，不能将其视为没有要求
+	// A null target marks an unresolved interface requirement.
+	// null 目标表示接口要求尚未解析
 	readonly target: number | null;
 }
 
 export interface GoMethod extends GoIdentifier {
 	readonly receiver: number;
 	readonly generic: boolean;
+	readonly receiverTypeParameters: readonly string[] | undefined;
+	// Undefined means the receiver or signature could not be classified safely.
+	// undefined 表示无法可靠分类接收者或方法签名
+	readonly signatureUsesTypeParameters: boolean | undefined;
 }
 
 interface GoTypeReference extends GoTypeName {
 	readonly kind: 'reference';
 	readonly target: number;
+	readonly pointer: boolean;
 }
 
 interface UnsupportedGoType extends GoTypeName {

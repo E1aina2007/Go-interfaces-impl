@@ -1,10 +1,26 @@
+# Build the VSIX from an explicit allow-list. Source, examples, tooling, and
+# repository metadata stay out unless a runtime or Marketplace file is added below.
 **/*
+
+# Extension manifest and localized manifest strings.
 !package.json
 !package.nls.json
 !package.nls.zh-cn.json
+
+# Marketplace documentation and license.
 !README.md
+!readme/README.en.md
+!CHANGELOG.md
+!LICENSE
+
+# Bundled extension runtime and parser assets.
 !dist/extension.js
 !dist/wasm/*.wasm
+
+# Runtime icons, extension icon, and README screenshot.
 !media/*.svg
 !media/icon.png
+!media/examples/example.zh-cn.png
+
+# Runtime translation bundles.
 !l10n/*.json

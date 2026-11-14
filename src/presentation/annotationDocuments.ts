@@ -25,8 +25,8 @@ interface PendingDocumentLoad {
 export class AnnotationDocuments implements Disposable {
 	private readonly documents = new Map<string, DocumentAnnotations>();
 	private readonly loading = new Map<TextDocument, PendingDocumentLoad>();
-	// Results kept per document URI and declaration key while the next query runs.
-	// 按文档 URI 和声明键保存的结果，在下一次查询完成前继续展示
+	// Retained results keyed by document and declaration.
+	// 按文档和声明保存的旧结果
 	private readonly previous = new Map<string, Map<string, QueryResult>>();
 	private revision = 0;
 	private disposed = false;
@@ -53,8 +53,8 @@ export class AnnotationDocuments implements Disposable {
 		return this.documents.values();
 	}
 
-	// Retain even an empty record until the current document has been read again.
-	// 即使保留记录为空，也要等当前文档重新读取后才结束保留阶段
+	// Keep the retained view until the document is loaded again.
+	// 文档重新加载前保持旧结果视图
 	view(document: TextDocument): DocumentView {
 		return documentView(this.get(document), this.previous.has(document.uri.toString()));
 	}
@@ -86,13 +86,13 @@ export class AnnotationDocuments implements Disposable {
 			return pending.result;
 		}
 		const request = { document, version: document.version, revision: this.revision };
-		// Register before starting work so all editor entry points share this load.
-		// 先登记再开始读取，让各个编辑器入口共用同一次加载
+		// Register the load before starting it.
+		// 启动加载前先登记任务
 		const result = Promise.resolve()
 			.then(() => this.read(request))
 			.finally(() => {
-				// A detached load must not remove a newer load for the same document.
-				// 已脱离缓存的旧加载不能删除同一文档的新加载
+				// Remove the pending entry only when it still points to this load.
+				// 仅在待处理项仍指向当前加载时移除它
 				if (this.loading.get(document)?.request === request) {
 					this.loading.delete(document);
 				}
@@ -118,8 +118,8 @@ export class AnnotationDocuments implements Disposable {
 				return undefined;
 			}
 			const module = await findModule(document.uri.toString());
-			// Recheck after each wait: hidden or superseded loads must not parse or repopulate caches.
-			// 每次等待后重新检查，已隐藏或被替代的加载不能继续解析或重新写入缓存
+			// Confirm that this load is current after asynchronous work.
+			// 异步操作后确认当前加载仍有效
 			if (!this.currentLoad(request)) {
 				return undefined;
 			}
@@ -150,8 +150,8 @@ export class AnnotationDocuments implements Disposable {
 		}
 	}
 
-	// Release cached state and detach pending work together so late loads cannot restore it.
-	// 同时释放缓存状态并移除在途任务，防止迟到的加载重新恢复状态
+	// Clear cached state and detach the pending load.
+	// 清除缓存状态并移除待处理加载
 	drop(document: TextDocument): boolean {
 		const uri = document.uri.toString();
 		const removed =

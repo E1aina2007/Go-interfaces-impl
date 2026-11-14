@@ -6,8 +6,8 @@ export function importsTesting(literal: Node): boolean {
 	if (literal.type === 'raw_string_literal') {
 		return text.slice(1, -1).replaceAll('\r', '') === 'testing';
 	}
-	// Decode numeric escapes only for this exact ASCII import; all other escapes rule out "testing".
-	// 仅为精确的 ASCII 导入路径解码数字转义，其他转义均不可能组成 testing
+	// Decode the import path before checking for testing.
+	// 检查 testing 导入前先解码路径
 	const decoded = text
 		.slice(1, -1)
 		.replace(
@@ -21,8 +21,8 @@ export function importsTesting(literal: Node): boolean {
 	return decoded === 'testing';
 }
 
-// Named embedded types need semantic resolution; reject only constraints visible in the syntax.
-// 命名嵌入类型需要语义解析，因此这里只拒绝语法可直接识别的约束
+// Detect constraints recognized from the syntax tree.
+// 检测语法树中可识别的约束接口
 function isConstraint(type: Node): boolean {
 	for (const element of type.namedChildren) {
 		if (element?.type !== 'type_elem') {
@@ -78,17 +78,53 @@ export function method(node: Node): GoMethod | undefined {
 	if (!name || !type || !['type_identifier', 'generic_type'].includes(type.type)) {
 		return undefined;
 	}
+	const generic = type.type === 'generic_type';
+	const receiverTypeParameters = generic ? receiverParameters(type) : [];
+	// Receiver parameters introduce their own names, independently of the type declaration.
+	// 接收者类型参数有独立名称，不沿用类型声明中的名称
 	return {
 		name: name.text,
 		start: name.startIndex,
 		end: name.endIndex,
 		receiver: type.startIndex,
-		generic: type.type === 'generic_type',
+		generic,
+		receiverTypeParameters,
+		signatureUsesTypeParameters: signatureUsesParameters(node, receiverTypeParameters),
 	};
 }
 
-// A named field's inner embeddings do not promote methods to the outer struct.
-// 具名字段内部的嵌入不会向外层结构体提升方法
+function signatureUsesParameters(
+	node: Node,
+	names: readonly string[] | undefined,
+): boolean | undefined {
+	const parameters = node.childForFieldName('parameters');
+	if (!names || !parameters || node.hasError) return undefined;
+	for (const part of [parameters, node.childForFieldName('result')]) {
+		if (!part) continue;
+		for (const item of [part, ...part.descendantsOfType('type_identifier')]) {
+			if (item?.type === 'type_identifier' && names.includes(item.text)) return true;
+		}
+	}
+	return false;
+}
+
+function receiverParameters(type: Node): string[] | undefined {
+	const argumentsNode = type.childForFieldName('type_arguments');
+	if (!argumentsNode || argumentsNode.hasError) {
+		return undefined;
+	}
+	const names: string[] = [];
+	for (const argument of argumentsNode.namedChildren) {
+		if (!argument || argument.type === 'comment') continue;
+		const members = argument.namedChildren.filter((item) => item?.type !== 'comment');
+		if (members.length !== 1 || members[0]?.type !== 'type_identifier') return undefined;
+		names.push(members[0].text);
+	}
+	return names.length > 0 ? names : undefined;
+}
+
+// Detect embedded fields or interface elements.
+// 检测嵌入字段或接口元素
 function hasEmbedding(type: Node): boolean {
 	if (type.type === 'interface_type') {
 		return type.namedChildren.some((member) => member?.type === 'type_elem');
@@ -104,7 +140,7 @@ function hasEmbedding(type: Node): boolean {
 
 export function declaration(node: Node): GoDeclaration | undefined {
 	const name = node.childForFieldName('name');
-	const type = unparenthesized(node.childForFieldName('type'));
+	let type = unparenthesized(node.childForFieldName('type'));
 	if (!name || !type) {
 		return undefined;
 	}
@@ -115,15 +151,23 @@ export function declaration(node: Node): GoDeclaration | undefined {
 		generic: node.childForFieldName('type_parameters') !== null || type.type === 'generic_type',
 		alias: node.type === 'type_alias',
 	};
+	const pointer = type.type === 'pointer_type';
+	// Unwrap only one pointer in aliases; the resolver validates the named target.
+	// 仅在别名中展开一层指针，由解析器验证具名目标
+	if (pointer && base.alias && !base.generic) {
+		type = unparenthesized(type.namedChildren.find((item) => item?.type !== 'comment')) ?? type;
+	}
 	if (type.type === 'type_identifier' || type.type === 'qualified_type') {
 		return {
 			...base,
 			kind: 'reference',
 			target: type.childForFieldName('name')?.startIndex ?? type.startIndex,
+			pointer,
 		};
 	}
-	// Defined non-pointer types can declare methods; function signatures alone do not implement interfaces.
-	// 非指针的定义类型可以声明方法，函数签名本身不能构成接口实现
+	if (pointer) return { ...base, kind: 'unsupported' };
+	// Classify supported underlying type forms.
+	// 分类支持的底层类型形式
 	const kinds: Readonly<Record<string, TypeKind>> = {
 		struct_type: 'struct',
 		interface_type: 'interface',

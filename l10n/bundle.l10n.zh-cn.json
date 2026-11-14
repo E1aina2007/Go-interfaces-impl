@@ -1,4 +1,10 @@
 {
+  "Go Interfaces: {0}": "Go Interfaces：{0}",
+  "Invalid Go implementation retry arguments": "重试 Go 实现关系的命令参数无效",
+  "Invalid Go implementation navigation arguments": "跳转 Go 实现关系的命令参数无效",
+  "Invalid Go implementation list arguments": "查看 Go 实现关系列表的命令参数无效",
+  "Go syntax parser is closed.": "Go 语法解析器已关闭。",
+  "Unable to parse the Go document.": "无法解析 Go 文件。",
   "The Go language service timed out. Try again after it finishes loading.": "Go 语言服务响应超时，请在加载完成后重试。",
   "The Go language service is not ready.": "Go 语言服务尚未就绪。",
   "Install and configure the official Go extension (golang.go).": "请安装并配置官方 Go 扩展（golang.go）。",
@@ -33,8 +39,8 @@
   "Save Go module and workspace configuration files before querying.": "请先保存 Go module 与工作区配置文件再查询。",
   "Select a Go source document.": "请选择 Go 源码文件。",
   "No go.mod was found for the selected file.": "所选文件没有找到对应的 go.mod。",
-  "Select a named type or interface. Its type reference must resolve unambiguously within 32 declarations; pointer types and generic instances are not supported.": "请选择具名类型或接口。其类型引用需在 32 个声明内无歧义地解析；不支持指针类型和泛型实例。",
+  "Select a supported named type or interface. Its type reference must resolve unambiguously within 32 declarations.": "请选择受支持的具名类型或接口。其类型引用需在 32 个声明内无歧义地解析。",
   "This command requires a concrete named type.": "该命令需要具体的具名类型。",
   "This command requires an interface type.": "该命令需要 interface 类型。",
-  "Generic declarations, constraint interfaces and empty interfaces are not supported by this query path.": "该查询路径不支持泛型声明、约束接口和空接口。"
+  "Generic interfaces, embedded generic structs, constraint interfaces and empty interfaces are not supported by this query path.": "该查询路径不支持泛型接口、含匿名嵌入的泛型结构体、约束接口和空接口。"
 }

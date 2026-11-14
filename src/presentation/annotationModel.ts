@@ -1,5 +1,6 @@
 import { Range, window, workspace, type TextDocument } from 'vscode';
 import type { GoFile } from '../core/types';
+import { supportsType } from '../query/generics';
 import type { QueryResult } from '../query/model';
 
 export const openRelation = 'goInterfaces.openRelation';
@@ -7,8 +8,12 @@ export const showRelations = 'goInterfaces.showRelations';
 export const retryRelation = 'goInterfaces.retryRelation';
 export const inlineLimit = 6;
 
-// Keep display states exclusive; stale results may be shown but never used for navigation.
-// 展示状态互斥，旧结果仅供展示，不能用于导航
+export type RetryRelationArguments = [source: string, version: number, offset: number];
+export type ShowRelationsArguments = [...RetryRelationArguments, generation: number];
+export type OpenRelationArguments = [...ShowRelationsArguments, target: string];
+
+// Define mutually exclusive annotation result states.
+// 定义互斥的标注结果状态
 export type AnnotationState =
 	| { readonly kind: 'pending' }
 	| { readonly kind: 'stale'; readonly result: QueryResult }
@@ -16,8 +21,8 @@ export type AnnotationState =
 	| { readonly kind: 'failed'; readonly message: string };
 
 export interface Annotation {
-	// Declaration name plus its occurrence, stable across edits that only move offsets.
-	// 声明名称加出现序号，在仅移动偏移的编辑前后保持稳定
+	// Stable key for each declaration name and occurrence.
+	// 每个声明名称及其出现序号的稳定键
 	readonly key: string;
 	readonly start: number;
 	readonly range: Range;
@@ -28,13 +33,13 @@ export interface DocumentAnnotations {
 	readonly document: TextDocument;
 	readonly version: number;
 	readonly items: readonly Annotation[];
-	// Syntax errors block new queries; previous results stay visible until the file parses again.
-	// 语法错误时不发起新查询，旧结果保持展示直到文件重新可解析
+	// Track whether syntax errors block document queries.
+	// 标记语法错误是否阻止文档查询
 	readonly blocked: boolean;
 }
 
-// A loaded document still has declaration-level states; this view does not grant navigation.
-// 文档加载后仍有声明级状态，展示视图不代表允许导航
+// Describe the loaded, retained, or empty annotation view.
+// 描述已加载、保留或空的标注视图
 export type DocumentView =
 	| { readonly kind: 'loaded'; readonly state: DocumentAnnotations }
 	| { readonly kind: 'retained' }
@@ -97,8 +102,22 @@ export function relationArguments(
 	state: DocumentAnnotations,
 	item: Annotation,
 	result: QueryResult,
-): unknown[] {
-	return [state.document.uri.toString(), state.version, item.start, result.generation];
+): ShowRelationsArguments {
+	return [...retryArguments(state, item), result.generation];
+}
+
+export function retryArguments(
+	state: DocumentAnnotations,
+	item: Annotation,
+): RetryRelationArguments {
+	return [state.document.uri.toString(), state.version, item.start];
+}
+
+export function openRelationArguments(
+	args: ShowRelationsArguments,
+	target: string,
+): OpenRelationArguments {
+	return [...args, target];
 }
 
 export function createAnnotations(
@@ -110,10 +129,10 @@ export function createAnnotations(
 	const occurrences = new Map<string, number>();
 	const items: Annotation[] = [];
 	for (const declaration of file.declarations) {
-		if (declaration.generic || declaration.kind === 'unsupported') {
-			continue;
-		}
-		if (declaration.kind !== 'reference' && (declaration.constraint || declaration.empty)) {
+		if (declaration.kind === 'unsupported') continue;
+		if (declaration.kind === 'reference') {
+			if (declaration.generic) continue;
+		} else if (!supportsType(declaration)) {
 			continue;
 		}
 		const occurrence = occurrences.get(declaration.name) ?? 0;
@@ -133,8 +152,8 @@ export function createAnnotations(
 	return { document, version, items, blocked: file.hasErrors };
 }
 
-// Carry displayed results across invalidation so names and icons do not flicker while typing.
-// 失效时保留已展示的结果，避免输入过程中名称和图标反复闪烁
+// Retain displayed results while a new query runs.
+// 新查询运行期间保留已展示的结果
 export function retainAnnotations(state: DocumentAnnotations): Map<string, QueryResult> {
 	const results = new Map<string, QueryResult>();
 	for (const item of state.items) {

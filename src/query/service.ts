@@ -19,8 +19,8 @@ export class ImplementationQueries implements Disposable {
 	private readonly invalidated = new EventEmitter<void>();
 	private readonly subscriptions: Disposable[];
 	private readonly pending = new Set<CancellationTokenSource>();
-	// Documents whose symbols the Go extension already served in this generation.
-	// 当前 generation 内 Go 扩展已经成功返回符号的文档
+	// Documents prepared for the current query generation.
+	// 当前查询 generation 中已准备的文档
 	private readonly prepared = new Set<string>();
 	private generation = 0;
 	private disposed = false;
@@ -42,8 +42,8 @@ export class ImplementationQueries implements Disposable {
 		const invalidate = (): void => {
 			this.generation++;
 			this.prepared.clear();
-			// Stop waiting for stale providers; the generation check still reports why the query ended.
-			// 停止等待已过期的语言服务请求，仍通过 generation 检查说明查询结束原因
+			// Cancel pending requests when results are invalidated.
+			// 查询结果失效时取消在途请求
 			for (const request of this.pending) {
 				request.cancel();
 			}
@@ -71,8 +71,8 @@ export class ImplementationQueries implements Disposable {
 				}
 			}),
 			workspace.onDidCloseTextDocument((document) => {
-				// Discarding a dirty buffer changes the source; closing a clean provider-opened file does not.
-				// 丢弃未保存缓冲区会改变源码，语言服务打开的干净文档关闭时无需使查询过期
+				// Invalidate queries when an edited document closes.
+				// 编辑过的文档关闭时使查询失效
 				if (dirty.delete(document.uri.toString())) {
 					invalidate();
 				}
@@ -111,14 +111,14 @@ export class ImplementationQueries implements Disposable {
 		const token = request.token;
 		const generation = this.generation;
 		const captured = new Map<string, CapturedFile>();
-		// Check workspace changes and captured document versions before accepting asynchronous results.
-		// 接受异步结果前同时核对工作区变化和已捕获文档版本
+		// Validate the query generation and captured document versions.
+		// 校验查询 generation 和已捕获的文档版本
 		const check = (): void => {
 			if (this.disposed || caller.isCancellationRequested) {
 				throw new CancellationError();
 			}
-			// Invalidation cancels our wait internally; keep it distinct from the caller's explicit cancellation.
-			// 失效会在内部取消等待，仍需与调用方主动取消区分
+			// Report invalidation when the generation or a captured version changes.
+			// 查询 generation 或已捕获的文档版本变化时报告失效
 			if (
 				generation !== this.generation ||
 				[...captured.values()].some((file) => file.document.version !== file.version)
@@ -153,8 +153,8 @@ export class ImplementationQueries implements Disposable {
 					read,
 					check,
 					prepare: async (resource): Promise<void> => {
-						// Editor annotations query many declarations per file; check readiness once per generation.
-						// 编辑器展示会对同一文件的多个声明查询，每个 generation 只确认一次语言服务就绪
+						// Prepare each document once per generation.
+						// 每个 generation 中每篇文档只准备一次
 						if (!this.prepared.has(resource.toString())) {
 							await this.provider.prepare(resource, token);
 							check();

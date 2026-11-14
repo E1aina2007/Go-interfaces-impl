@@ -54,8 +54,8 @@ export class TestingFilter {
 			}
 			const concrete = subject.declaration.kind !== 'interface' ? subject : candidate;
 			const iface = subject.declaration.kind === 'interface' ? subject : candidate;
-			// A production promoted method may remain valid when a test variant adds a direct method.
-			// 测试变体新增直接方法时，生产代码中的提升方法仍可能成立
+			// Keep embedded-method candidates and mark their origins unverified.
+			// 保留嵌入方法候选并标记来源未确认
 			if (concrete.declaration.embedded) {
 				matches.push(candidate);
 				unverified.add(candidate.id);
@@ -67,13 +67,13 @@ export class TestingFilter {
 			for (const method of requirements.methods) {
 				const origins = await this.origins(method);
 				const sources = origins?.owners.get(concrete.id);
-				// A retained source proves this method can stay despite other unresolved receivers.
-				// 已确认的可保留来源足以保留该方法，不受其他接收者未解析的影响
+				// A confirmed production origin satisfies this method requirement.
+				// 已确认的生产来源可满足当前方法要求
 				if (sources?.retained) {
 					continue;
 				}
-				// A known required method can justify exclusion even when other requirements remain unresolved.
-				// 已确认的必要方法可作为过滤依据，即使其他要求仍未解析完成
+				// Exclude candidates with a confirmed test-only method origin.
+				// 排除已确认仅有测试方法来源的候选
 				if (origins?.classified && sources?.filtered) {
 					exclude = true;
 					break;
@@ -117,8 +117,8 @@ export class TestingFilter {
 		if (cached) {
 			return cached;
 		}
-		// Bound language-service work; an exhausted budget keeps results and reports unknown origins.
-		// 限制语言服务工作量，预算耗尽时保留结果并标记来源未确认
+		// Limit method-origin queries.
+		// 限制方法来源查询次数
 		if (this.requested >= methodQueryLimit) {
 			return undefined;
 		}
@@ -141,8 +141,8 @@ export class TestingFilter {
 			}
 			this.inspected++;
 			const file = await this.read(location.uri);
-			// An unparseable method file leaves the overall source classification incomplete.
-			// 方法文件存在语法错误时，来源整体分类不完整
+			// Mark source classification incomplete when a file has syntax errors.
+			// 文件存在语法错误时标记来源分类未完成
 			if (file.syntax.hasErrors) {
 				classified = false;
 				continue;
@@ -152,14 +152,15 @@ export class TestingFilter {
 				item.start <= offset && offset < item.end;
 			const declaration = file.syntax.methods.find(matches);
 			if (!declaration) {
-				// Interface member results describe requirements, not concrete receiver method origins.
-				// 接口成员结果描述方法要求，不能作为具体接收者的方法来源
+				// Check whether the location refers to an interface member.
+				// 检查该位置是否属于接口成员
 				if (!file.syntax.interfaceMethods.some(matches)) {
 					classified = false;
 				}
 				continue;
 			}
-			if (declaration.generic) {
+			if (declaration.generic && declaration.signatureUsesTypeParameters !== false) {
+				classified = false;
 				continue;
 			}
 			if (declaration.name !== method.name) {
@@ -169,12 +170,12 @@ export class TestingFilter {
 			const owner = await this.receiver(
 				new Location(location.uri, file.document.positionAt(declaration.receiver)),
 			);
-			if (!owner || owner.declaration.kind === 'interface' || owner.declaration.generic) {
+			if (!owner || owner.declaration.kind === 'interface') {
 				classified = false;
 				continue;
 			}
-			// Accumulate both source kinds so a later test location cannot erase a retained source.
-			// 同时累计两类来源，避免后返回的测试位置覆盖已有的可保留来源
+			// Record production and test origins for each receiver type.
+			// 按接收者类型记录生产代码和测试代码中的方法来源
 			const sources = owners.get(owner.id) ?? { filtered: false, retained: false };
 			const filtered = location.uri.path.endsWith('_test.go') && file.syntax.importsTesting;
 			if (filtered) {

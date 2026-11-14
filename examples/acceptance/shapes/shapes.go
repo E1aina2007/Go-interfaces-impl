@@ -1,62 +1,44 @@
-// Package shapes covers direct declarations, aliases, named definitions and pointer receivers.
-// shapes 包展示直接声明、别名、新定义类型以及指针接收者
+// Package shapes demonstrates interface implementations with value and pointer receivers.
+// shapes 包展示值接收者和指针接收者实现接口
 package shapes
 
 import "math"
 
-// Shape is expected to show Circle, Rect and Square.
-// Shape 应显示 Circle、Rect 和 Square 三个实现者
+// Shape is implemented implicitly by types that provide both methods.
+// 同时提供两个方法的类型会隐式实现 Shape
 type Shape interface {
 	Area() float64
 	Perimeter() float64
 }
 
-// Rect implements Shape with value receivers.
-// Rect 使用值接收者实现 Shape
 type Rect struct {
-	W, H float64
+	Width, Height float64
 }
 
-func (r Rect) Area() float64 { return r.W * r.H }
+func (r Rect) Area() float64 { return r.Width * r.Height }
 
-func (r Rect) Perimeter() float64 { return 2 * (r.W + r.H) }
+func (r Rect) Perimeter() float64 { return 2 * (r.Width + r.Height) }
 
-// Circle implements Shape with pointer receivers.
-// Circle 使用指针接收者实现 Shape
+// Circle uses pointer receivers, so *Circle implements Shape.
+// Circle 使用指针接收者，因此 *Circle 实现 Shape
 type Circle struct {
-	R float64
+	Radius float64
 }
 
-func (c *Circle) Area() float64 { return math.Pi * c.R * c.R }
+func (c *Circle) Area() float64 { return math.Pi * c.Radius * c.Radius }
 
-func (c *Circle) Perimeter() float64 { return 2 * math.Pi * c.R }
+func (c *Circle) Perimeter() float64 { return 2 * math.Pi * c.Radius }
 
-// Figure is an alias and resolves to Shape.
-// Figure 是别名，解析后与 Shape 共享身份
-type Figure = Shape
-
-// Box is an alias and shares the identity of Rect.
-// Box 是别名，解析后与 Rect 共享身份
-type Box = Rect
-
-// Square is a new defined type; it implements Shape only through its own methods.
-// Square 是新定义类型，仅通过自己的方法实现 Shape
-type Square Rect
-
-func (s Square) Area() float64 { return s.W * s.W }
-
-func (s Square) Perimeter() float64 { return 4 * s.W }
-
-// Tile is a new defined type without methods; it does not inherit Rect's methods.
-// Tile 没有自己的方法，不继承 Rect 的方法
-type Tile Rect
-
-// Plain has no methods and is expected to show no annotation.
-// Plain 没有方法，预期不显示实现关系标记
-type Plain struct {
-	Name string
+type Square struct {
+	Side float64
 }
 
+func (s Square) Area() float64 { return s.Side * s.Side }
+
+func (s Square) Perimeter() float64 { return 4 * s.Side }
+
+// These assignments check the implementations at compile time.
+// 这些赋值在编译时检查接口实现
 var (
 	_ Shape = Rect{}
 	_ Shape = (*Circle)(nil)

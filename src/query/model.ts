@@ -25,8 +25,8 @@ export interface LocatedMethod {
 	readonly location: Location;
 }
 
-// A typed error lets callers degrade only candidates whose files are mid-edit.
-// 使用独立错误类型，便于调用方只对正在编辑的候选文件降级处理
+// Error raised when a candidate file has syntax errors.
+// 候选文件存在语法错误时抛出此错误
 export class GoSyntaxError extends Error {
 	constructor(readonly uri: Uri) {
 		super(l10n.t('Fix Go syntax errors in {0} before querying.', uri.fsPath));
