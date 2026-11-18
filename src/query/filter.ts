@@ -1,4 +1,5 @@
 import { CancellationError, Location, type CancellationToken, type Uri } from 'vscode';
+import { isTestFile } from '../core/testing';
 import type { GoProvider } from '../language/provider';
 import { GoSyntaxError, type CapturedFile, type LocatedMethod, type LocatedType } from './model';
 import type { TypeResolver } from './resolve';
@@ -177,7 +178,7 @@ export class TestingFilter {
 			// Record production and test origins for each receiver type.
 			// 按接收者类型记录生产代码和测试代码中的方法来源
 			const sources = owners.get(owner.id) ?? { filtered: false, retained: false };
-			const filtered = location.uri.path.endsWith('_test.go') && file.syntax.importsTesting;
+			const filtered = isTestFile(location.uri.path);
 			if (filtered) {
 				sources.filtered = true;
 			} else {

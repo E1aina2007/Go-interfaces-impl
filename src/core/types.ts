@@ -58,6 +58,5 @@ export interface GoFile {
 	readonly interfaceMethods: readonly GoInterfaceMethod[];
 	readonly interfaceEmbeddings: readonly GoInterfaceEmbedding[];
 	readonly methods: readonly GoMethod[];
-	readonly importsTesting: boolean;
 	readonly hasErrors: boolean;
 }
