@@ -1,81 +1,25 @@
-# Go Interface Implementation Examples
+# Go interface implementation examples
 
 [简体中文](README.md)
 
-This directory is a standalone Go module that uses only the Go standard library. Its module path is `github.com/E1aina2007/Go-interfaces-impl/examples/acceptance`; imports between packages point to the source in this directory. There is no need to download it from GitHub or configure `replace`, `GOPATH`, or `go.work`. The example source and module configuration are excluded from the VSIX and do not participate in the extension build.
+This directory is a standalone Go module. Run `go run .` here to try the examples.
 
-## View the extension in action
+From the repository root, run `npm ci`, then select **Run Extension (Acceptance Examples)** in VS Code and press **F5**. If the extension is installed, open the module with `code examples/acceptance`. Set up the official Go extension (`golang.go`), Go SDK, and gopls, then wait for the language server to load.
 
-When developing the extension, run `npm ci` in the repository root, choose **Run Extension (Acceptance Examples)** in the VS Code Run and Debug view, and press **F5**. This configuration builds the extension and opens this directory and `shapes/shapes.go` in the extension development host.
+Click a related type name above a declaration to navigate, or click the direction and count to open the list. Enable `editor.codeLens` for the names and `editor.glyphMargin` for the icons. Results depend on the locations reported by the Go language service.
 
-If the VSIX is already installed, open this directory directly in VS Code:
+## Implementation examples
 
-```sh
-code examples/acceptance
-```
+| File                                   | What to query                                                                                                      |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| [shapes/shapes.go](shapes/shapes.go)   | Query `Shape` for three implementations. `Rect` and `Square` use value receivers. `Circle` uses pointer receivers. |
+| [store/store.go](store/store.go)       | [Memory](store/memory/memory.go) implements `Store` from another package.                                          |
+| [stream/stream.go](stream/stream.go)   | `ReadWriter` combines `Reader` and `Writer`. `Buffer` implements it by embedding `bytes.Buffer`.                   |
+| [defined/types.go](defined/types.go)   | `FormatterFunc` adapts a function to the `Formatter` interface.                                                    |
+| [generics/types.go](generics/types.go) | The generic struct `Box[T]` implements `Label`.                                                                    |
 
-Install and configure the official Go extension (`golang.go`), its Go SDK, and gopls. Trust the workspace and wait for the language server to finish loading. Then open `shapes/shapes.go` and scroll the `Shape`, `Rect`, and other declarations into view:
+## Test source filtering
 
-- Above `Shape`, expect `Implemented by (3) | Circle | Rect | Square`, with a blue direction icon in the gutter.
-- Above `Rect`, expect `Implements (1) | Shape`, with a green direction icon in the gutter.
-- Select a related name to navigate to its declaration, or select the direction and count to open the full list.
-- In a Simplified Chinese interface, the directions are `实现者` and `实现`.
-
-These are the expected example relationships; the actual results depend on the Go language service. The extension automatically queries only visible declarations, so scroll down to inspect other types. Gutter icons require `editor.glyphMargin`, and names above declarations require `editor.codeLens`; the extension settings `goInterfaces.codeLens` and `goInterfaces.gutterIcons` are enabled by default.
-
-You do not need to initialize a module or copy the directory. If an older window still reports import errors after `go.mod` was added, reopen this directory or run **Go: Restart Language Server** and wait for it to load.
-
-## Run the example program
-
-From this directory, run:
-
-```sh
-go run .
-```
-
-The program demonstrates a function adapter, shape calculations, cross-package storage, interface composition, and a generic type. Running it is optional when inspecting the extension's annotations.
-
-## Scenarios and expected results
-
-| File                           | Scenario                                                 | Expected result                                                                                                                                         |
-| ------------------------------ | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `shapes/shapes.go`             | Value and pointer receivers                              | `Shape` shows `Circle`, `Rect`, and `Square`; each type shows `Shape`.                                                                                  |
-| `store/memory/memory.go`       | Cross-package implementation and type embedding          | `Memory` implements `Store`; `Named` implements it through embedded `Memory` and is marked `?` if the method source is unconfirmed.                     |
-| `store/memory/fake_test.go`    | Type declared in a test file                             | Ordinary-file queries follow the filter setting; queries from test files always retain `fakeStore`.                                                     |
-| `stream/stream.go`             | Interface composition                                    | `Buffer` implements `Reader`, `Writer`, `Closer`, `ReadWriter`, and `ReadWriteCloser`.                                                                  |
-| `defined/types.go`             | Named functions, basic types, and slices                 | `FormatterFunc` implements `Formatter`; `Count`, `Word`, and `List` implement `Text`.                                                                   |
-| `generics/types.go`            | Generic type implementing an ordinary interface          | `Box` implements `Label` and uses a name to distinguish its contents.                                                                                   |
-| `generics/sources_test.go`     | Generic type declared in test code                       | Ordinary-file Label queries follow the setting, showing Box or Box / TestBox; test-file references retain both.                                         |
-| `generictypes/types.go`        | Generic collections and renamed type parameters          | `List`, `Array`, `Dict`, and `Queue` each show `Sized`; the examples include a pointer receiver, renamed parameters, and two type parameters on `Dict`. |
-| `generictypes/types.go`        | Generic named function                                   | `Func` and `Arity` each show one relationship in both directions; query the `Func` type name.                                                           |
-| `generictypes/types.go`        | Independent and type-parameter-dependent methods         | `List` retains its `Sized` relationship, but is not shown for `FirstString` or `SizedFirstString`, even with filtering disabled.                        |
-| `generictypes/types.go`        | Methodless type and unsupported references               | `Missing` has no matches; `IntList`, `NewList`, `RefList`, and `Counter` are unsupported.                                                               |
-| `generictypes/sources_test.go` | Generic collection declarations and methods in test code | Ordinary-file Sized queries return four or six results according to the setting; test-file references retain all six without unconfirmed markers.       |
-
-The `*_test.go` files contain declarations for manually checking test source filtering. They contain no unit test functions, and there is no need to run `go test`. After running **Go Interfaces: Toggle Test Source Filter**, check `Store` in `store/store.go` again. Whether the language service returns locations from test variants depends on its loading state, so zero results alone do not prove that no implementations exist.
-
-### Test query context
-
-`testingrelations/` isolates source-filtering scenarios with TestScope-prefixed methods. These are planned expectations; actual host results belong in the local handoff record:
-
-| Query position                                                                         | Expected result                                                                                                                                                    |
-| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Token in `types.go`, filtering enabled                                                 | Retain Item, Helper, and Embedded; hide LocalItem and ExternalItem. Embedded remains unverified.                                                                   |
-| Helper in `helpers.go`                                                                 | Retain Token even though this ordinary file imports testing.                                                                                                       |
-| Resettable in `types.go`                                                               | Item's required method exists only in a test file; hide with filtering enabled and restore when disabled.                                                          |
-| LocalToken or LocalItem in `sources_test.go`                                           | Retain test-context relations without importing testing; LocalToken can show ordinary implementing types.                                                          |
-| Item reference or ItemAlias in `sources_test.go`                                       | Use the original test-file context to retain provider-reported Token, Resettable, LocalToken, and other matches; Item's canonical declaration stays ordinary.      |
-| ExternalToken, ExternalItem, ordinary-type references or aliases in `external_test.go` | Retain valid external-test relations without adding methods to types from another package.                                                                         |
-| Ordinary and test files in split editors; toggle filtering                             | Ordinary-file annotations follow the setting; test-file queries retain test relations. Old commands expire and summaries reflect each query's effective filtering. |
-
-Disabling filtering includes test relations in both contexts. Test queries still enforce generic eligibility and module boundaries. References or aliases in test files do not create separate identities for ordinary declarations. Ordinary builds exclude `_test.go`, so inspect those files' diagnostics and public provider results in the host as well.
-
-## Interaction checks
-
-The signatures of a generic type's required direct methods must not depend on its receiver type parameters. `generictypes.List.Len` meets this condition, while `First` returns a type parameter, so its relationship with `FirstString` is not displayed. Generic interfaces, generic aliases, and newly defined references remain unsupported. Generic instantiations are grouped by declaration rather than counted separately. A generic relationship is not displayed when the required method evidence is missing or exceeds the query budget.
-
-- While typing continuously, displayed names and icons stay in place and refresh after typing stops; old names cannot be clicked during the refresh.
-- A temporary syntax error in the current file preserves its previous display; syntax errors in other files count affected candidates as unreadable.
-- Changing gopls build flags or environment settings immediately ends pending queries and triggers new ones.
-- `goInterfaces.codeLens` and `goInterfaces.gutterIcons` can be disabled independently.
-- Nested modules, vendor directories, multi-root workspaces, and remote environments require separate setup and are not covered by this example.
+1. Query `Store` in [store.go](store/store.go). Filtering is on by default and the list shows `Memory`.
+2. Run **Go Interfaces: Toggle Test Source Filter** to turn filtering off, then query `Store` again. The list also shows `fakeStore` from the test file.
+3. Turn filtering back on. Place the cursor on the `Store` reference in [fake_test.go](store/memory/fake_test.go) and run **Go Interfaces: Show Implementing Types**. This test-file query includes both `Memory` and `fakeStore`.

@@ -1,5 +1,5 @@
-// Package generics demonstrates a generic type implementing an ordinary interface.
-// generics 包展示泛型类型实现普通接口
+// Package generics shows direct interface implementations on generic types.
+// generics 包展示泛型类型通过直接方法实现接口
 package generics
 
 type Label interface {
