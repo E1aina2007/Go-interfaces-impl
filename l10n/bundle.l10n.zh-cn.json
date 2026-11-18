@@ -19,8 +19,6 @@
   "Go Interfaces: Finding implementing types": "Go Interfaces：正在查询实现接口的类型",
   "The Go language service returned no displayable matches in this module. {0}.": "Go 语言服务在当前 module 中没有返回可展示的匹配。{0}。",
   "Open a Go file in a workspace to change its test filter.": "请先打开工作区中的 Go 文件，再切换测试来源过滤。",
-  "Go Interfaces: Test source filter disabled.": "Go Interfaces：已关闭测试来源过滤。",
-  "Go Interfaces: Test source filter enabled.": "Go Interfaces：已开启测试来源过滤。",
   "Go Interfaces: Unable to change the test filter: {0}": "Go Interfaces：无法切换测试来源过滤：{0}",
   "Show all results": "查看全部结果",
   "Refreshing after a change…": "变化后正在刷新…",
@@ -42,5 +40,9 @@
   "Select a supported named type or interface. Its type reference must resolve unambiguously within 32 declarations.": "请选择受支持的具名类型或接口。其类型引用需在 32 个声明内无歧义地解析。",
   "This command requires a concrete named type.": "该命令需要具体的具名类型。",
   "This command requires an interface type.": "该命令需要 interface 类型。",
-  "Generic interfaces, embedded generic structs, constraint interfaces and empty interfaces are not supported by this query path.": "该查询路径不支持泛型接口、含匿名嵌入的泛型结构体、约束接口和空接口。"
+  "Generic interfaces, embedded generic structs, constraint interfaces and empty interfaces are not supported by this query path.": "该查询路径不支持泛型接口、含匿名嵌入的泛型结构体、约束接口和空接口。",
+  "Go Interfaces: Test sources included in all Go files.": "Go Interfaces：所有 Go 文件均保留测试关系。",
+  "Go Interfaces: Test sources hidden in ordinary Go files; included in test files.": "Go Interfaces：普通 Go 文件隐藏测试来源，测试文件保留测试关系。",
+  "Confirmed test sources hidden": "已隐藏确认的测试来源",
+  "Test sources included": "保留测试关系"
 }

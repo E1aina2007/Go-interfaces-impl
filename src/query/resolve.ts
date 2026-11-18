@@ -1,4 +1,5 @@
 import { CancellationError, Location, Range, type CancellationToken, type Uri } from 'vscode';
+import { isTestFile } from '../core/testing';
 import type { GoType } from '../core/types';
 import type { GoProvider } from '../language/provider';
 import { canonicalUri, fileKey } from '../workspace/module';
@@ -177,7 +178,7 @@ export class TypeResolver {
 					file.document.positionAt(declaration.end),
 				),
 			),
-			testing: location.uri.path.endsWith('_test.go') && file.syntax.importsTesting,
+			testing: isTestFile(location.uri.path),
 			methods,
 			interfaces,
 		};

@@ -1,5 +1,5 @@
-// Package memory demonstrates a cross-package implementation and an embedded type.
-// memory 包展示跨包实现和类型嵌入
+// Package memory implements store.Store with an in-memory map.
+// memory 包使用内存 map 实现 store.Store
 package memory
 
 import "github.com/E1aina2007/Go-interfaces-impl/examples/acceptance/store"
@@ -24,14 +24,4 @@ func (m *Memory) Put(key, value string) {
 	m.data[key] = value
 }
 
-// Named adds a name while reusing Memory's promoted methods.
-// Named 在复用 Memory 提升方法的同时增加名称
-type Named struct {
-	Memory
-	Name string
-}
-
-var (
-	_ store.Store = (*Memory)(nil)
-	_ store.Store = (*Named)(nil)
-)
+var _ store.Store = (*Memory)(nil)

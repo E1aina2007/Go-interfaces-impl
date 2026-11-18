@@ -8,7 +8,7 @@ import type {
 	GoInterfaceMethod,
 	GoMethod,
 } from './types';
-import { declaration, importsTesting, method, unparenthesized } from './syntaxDeclarations';
+import { declaration, method, unparenthesized } from './syntaxDeclarations';
 
 export class GoSyntax {
 	private parser: Parser | undefined;
@@ -85,16 +85,11 @@ export class GoSyntax {
 					methods.push(item);
 				}
 			}
-			const testing = tree.rootNode.descendantsOfType('import_spec').some((node) => {
-				const literal = node?.childForFieldName('path');
-				return literal !== null && literal !== undefined && importsTesting(literal);
-			});
 			return {
 				declarations,
 				interfaceMethods,
 				interfaceEmbeddings,
 				methods,
-				importsTesting: testing,
 				hasErrors: tree.rootNode.hasError,
 			};
 		} finally {

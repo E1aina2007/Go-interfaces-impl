@@ -27,15 +27,12 @@ func main() {
 	value, ok := data.Get("language")
 	fmt.Printf("Store: language=%s found=%t\n", value, ok)
 
-	var buffer stream.ReadWriteCloser = &stream.Buffer{}
+	var buffer stream.ReadWriter = &stream.Buffer{}
 	if _, err := buffer.Write([]byte("Go")); err != nil {
 		panic(err)
 	}
 	content, err := io.ReadAll(buffer)
 	if err != nil {
-		panic(err)
-	}
-	if err := buffer.Close(); err != nil {
 		panic(err)
 	}
 	fmt.Printf("Stream: %s\n", content)
