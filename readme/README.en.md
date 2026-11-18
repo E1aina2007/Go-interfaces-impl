@@ -77,7 +77,7 @@ Related names above declarations are controlled by VS Code's `editor.codeLens` s
 
 | Setting                                   | Default | Description                                                |
 | ----------------------------------------- | ------- | ---------------------------------------------------------- |
-| `goInterfaces.hideTestingImplementations` | `true`  | Filter relationships by test source                        |
+| `goInterfaces.hideTestingImplementations` | `true`  | Hide test-source relations in ordinary files               |
 | `goInterfaces.codeLens`                   | `true`  | Show related names near type declarations                  |
 | `goInterfaces.gutterIcons`                | `true`  | Show direction icons and relationship hovers in the gutter |
 
@@ -85,7 +85,7 @@ Related names above declarations are controlled by VS Code's `editor.codeLens` s
 
 - Results come from the definition, document symbol, and implementation features exposed by the official Go extension. They are limited by the ranges returned by the language service and may not enumerate every relationship in a module. No result does not prove that a type has no implementations.
 - Value and pointer forms are not shown separately. Generic interfaces, generic aliases and defined references, promoted generic methods, parameter-dependent method signatures, empty interfaces, and type-set constraints are outside the supported scope. Generic instantiations are not counted separately. Generic relations without the necessary method evidence count as unsupported, even when test filtering is disabled.
-- Test source filtering is enabled by default. A relationship is hidden when its type declaration is in a `_test.go` file that directly imports `testing`, or when a required direct method is reported only from test code. A non-test source for the same method prevents filtering on that method. The public API does not expose every package variant or promoted method source, so unresolved or promoted sources are kept and marked as uncertain.
+- Test source filtering is enabled by default. In ordinary Go files, a relationship is hidden when its canonical interface or concrete type is declared in a `_test.go` file, or a required direct method is confirmed only in test files. Imports do not determine test sources: ordinary files importing `testing` remain eligible. An ordinary source for the same method prevents filtering on that method. Queries from declarations, references, or aliases in test files include ordinary and test relations; disabling filtering includes them everywhere. Summaries show the effective filter state. Generic eligibility and module boundaries still apply. The public API does not expose every package variant or promoted method source, so unresolved or promoted sources are kept and marked as uncertain.
 - Queries are scoped to the nearest `go.mod` for the current file. Other modules in a `go.work` workspace are not included. Virtual and untrusted workspaces are not supported.
 
 ## Feedback and releases

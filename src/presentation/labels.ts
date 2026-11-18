@@ -10,6 +10,9 @@ export function relationDirection(result: QueryResult): string {
 export function relationSummary(result: QueryResult): string {
 	const parts = [
 		l10n.t('Language-service results may be incomplete'),
+		result.hideTesting
+			? l10n.t('Confirmed test sources hidden')
+			: l10n.t('Test sources included'),
 		l10n.t('{0} filtered', result.hidden),
 		l10n.t('{0} unsupported', result.skipped),
 	];
