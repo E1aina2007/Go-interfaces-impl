@@ -4,7 +4,7 @@
   "publisher": "E1aina2007",
   "description": "%extension.description%",
   "icon": "media/icon.png",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "private": true,
   "license": "MIT",
   "repository": {
@@ -154,6 +154,7 @@
     "eslint": "^10.14.0",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.14.0",
+    "marked": "^18.1.3",
     "npm-run-all2": "^9.0.4",
     "prettier": "^3.9.10",
     "typescript": "~5.9.3",

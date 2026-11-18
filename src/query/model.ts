@@ -12,6 +12,8 @@ export interface CapturedFile {
 
 export interface LocatedType {
 	readonly id: string;
+	readonly packageName: string | undefined;
+	readonly packageDirectory: string;
 	readonly declaration: GoType;
 	readonly location: Location;
 	readonly testing: boolean;
@@ -42,6 +44,8 @@ export interface QueryResult {
 	readonly unverifiedTesting: ReadonlySet<string>;
 	readonly skipped: number;
 	readonly unreadable: number;
+	// Effective filtering for this query, including its original file context.
+	// 本次查询实际生效的过滤状态，包含原始文件上下文
 	readonly hideTesting: boolean;
 	readonly generation: number;
 }

@@ -54,10 +54,10 @@ interface UnsupportedGoType extends GoTypeName {
 export type GoDeclaration = GoType | GoTypeReference | UnsupportedGoType;
 
 export interface GoFile {
+	readonly packageName: string | undefined;
 	readonly declarations: readonly GoDeclaration[];
 	readonly interfaceMethods: readonly GoInterfaceMethod[];
 	readonly interfaceEmbeddings: readonly GoInterfaceEmbedding[];
 	readonly methods: readonly GoMethod[];
-	readonly importsTesting: boolean;
 	readonly hasErrors: boolean;
 }

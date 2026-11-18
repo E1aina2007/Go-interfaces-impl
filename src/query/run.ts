@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { Location, l10n, workspace, type CancellationToken, type Position, type Uri } from 'vscode';
+import { isTestFile } from '../core/testing';
 import type { GoProvider } from '../language/provider';
 import { belongsToModule, findModule } from '../workspace/module';
 import { TestingFilter } from './filter';
@@ -87,12 +88,12 @@ export async function runQuery(
 			),
 		);
 	}
-	// Query from the original reference to preserve its build context.
-	// 从原始引用位置查询以保留构建上下文
+	// Preserve the original reference's build and test context after resolving aliases.
+	// 解析别名后仍保留原始引用的构建和测试上下文
 	const locations = await provider.implementations(uri, position, token);
-	const hideTesting = workspace
-		.getConfiguration('goInterfaces', uri)
-		.get<boolean>('hideTestingImplementations', true);
+	const configuration = workspace.getConfiguration('goInterfaces', uri);
+	const hideTesting =
+		!isTestFile(uri.path) && configuration.get<boolean>('hideTestingImplementations', true);
 	const matches = new Map<string, LocatedType>();
 	const seen = new Set<string>();
 	let skipped = 0;

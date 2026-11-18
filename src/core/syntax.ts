@@ -8,7 +8,7 @@ import type {
 	GoInterfaceMethod,
 	GoMethod,
 } from './types';
-import { declaration, importsTesting, method, unparenthesized } from './syntaxDeclarations';
+import { declaration, method, unparenthesized } from './syntaxDeclarations';
 
 export class GoSyntax {
 	private parser: Parser | undefined;
@@ -28,6 +28,12 @@ export class GoSyntax {
 			throw new Error(l10n.t('Unable to parse the Go document.'));
 		}
 		try {
+			const clause = tree.rootNode.namedChildren.find(
+				(node) => node?.type === 'package_clause',
+			);
+			const packageName = clause?.namedChildren.find(
+				(node) => node?.type === 'package_identifier',
+			)?.text;
 			const declarations: GoDeclaration[] = [];
 			const interfaceMethods: GoInterfaceMethod[] = [];
 			const interfaceEmbeddings: GoInterfaceEmbedding[] = [];
@@ -85,16 +91,12 @@ export class GoSyntax {
 					methods.push(item);
 				}
 			}
-			const testing = tree.rootNode.descendantsOfType('import_spec').some((node) => {
-				const literal = node?.childForFieldName('path');
-				return literal !== null && literal !== undefined && importsTesting(literal);
-			});
 			return {
+				packageName,
 				declarations,
 				interfaceMethods,
 				interfaceEmbeddings,
 				methods,
-				importsTesting: testing,
 				hasErrors: tree.rootNode.hasError,
 			};
 		} finally {

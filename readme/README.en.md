@@ -64,6 +64,8 @@ See the [full multi-type acceptance example](../examples/acceptance/shapes/shape
 
 Open a Go file to see relationships for visible type declarations. A concrete type shows `Implements` above its declaration; an interface shows `Implemented by`. Select a related name to navigate, or select the direction and count to open the full result list. A trailing `?` means the test source could not be fully confirmed.
 
+Inline names, hover links, and list entries use the declared package name, for example `cache.Memory` and `memory.Memory`. When matches in different directories share both names, their labels include the directory relative to the current Go module, as in `cache.Memory (internal/cache)`.
+
 You can also place the cursor on a type name and run a command from the Command Palette:
 
 - **Go Interfaces: Show Implemented Interfaces**
@@ -77,7 +79,7 @@ Related names above declarations are controlled by VS Code's `editor.codeLens` s
 
 | Setting                                   | Default | Description                                                |
 | ----------------------------------------- | ------- | ---------------------------------------------------------- |
-| `goInterfaces.hideTestingImplementations` | `true`  | Filter relationships by test source                        |
+| `goInterfaces.hideTestingImplementations` | `true`  | Hide test-source relations in ordinary files               |
 | `goInterfaces.codeLens`                   | `true`  | Show related names near type declarations                  |
 | `goInterfaces.gutterIcons`                | `true`  | Show direction icons and relationship hovers in the gutter |
 
@@ -85,12 +87,15 @@ Related names above declarations are controlled by VS Code's `editor.codeLens` s
 
 - Results come from the definition, document symbol, and implementation features exposed by the official Go extension. They are limited by the ranges returned by the language service and may not enumerate every relationship in a module. No result does not prove that a type has no implementations.
 - Value and pointer forms are not shown separately. Generic interfaces, generic aliases and defined references, promoted generic methods, parameter-dependent method signatures, empty interfaces, and type-set constraints are outside the supported scope. Generic instantiations are not counted separately. Generic relations without the necessary method evidence count as unsupported, even when test filtering is disabled.
-- Test source filtering is enabled by default. A relationship is hidden when its type declaration is in a `_test.go` file that directly imports `testing`, or when a required direct method is reported only from test code. A non-test source for the same method prevents filtering on that method. The public API does not expose every package variant or promoted method source, so unresolved or promoted sources are kept and marked as uncertain.
+- Test source filtering is enabled by default. For queries from ordinary Go files, a relationship is hidden when its canonical interface or concrete type is declared in a `_test.go` file. For a concrete type without embedded fields, a required direct method confirmed only in test files also hides the relationship. Test source classification uses the filename regardless of imports. An ordinary source for the same method satisfies its source check. Queries from declarations, references, or aliases in test files include ordinary and test relations. Disabling filtering includes them everywhere. Summaries show the effective filter state. Generic eligibility and module boundaries still apply.
+- During test source filtering, a relationship for a non-generic struct with embedded fields is confirmed when the language service identifies every required method as a direct method declared on that struct in an ordinary Go file. Relationships that rely on promoted methods or lack this evidence remain visible and marked as unverified.
 - Queries are scoped to the nearest `go.mod` for the current file. Other modules in a `go.work` workspace are not included. Virtual and untrusted workspaces are not supported.
 
 ## Feedback and releases
 
 Report bugs or suggest improvements on [GitHub Issues](https://github.com/E1aina2007/Go-interfaces-impl/issues). The Marketplace publisher ID is `E1aina2007`. See the [changelog](../CHANGELOG.md) for version history and the [release workflow](../.github/workflows/release.yml) for automated publishing.
+
+Before a release, add a `## version — YYYY-MM-DD` section to the changelog and synchronize the versions in `package.json` and `package-lock.json`. Keep reference-style link definitions within the relevant version section. After the change reaches `main`, the workflow validates the section and uses it as the GitHub Release notes; existing releases are not updated automatically.
 
 ## License and acknowledgements
 

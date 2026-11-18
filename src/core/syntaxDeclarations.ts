@@ -1,26 +1,6 @@
 import type { Node } from '@vscode/tree-sitter-wasm';
 import type { GoDeclaration, GoMethod, TypeKind } from './types';
 
-export function importsTesting(literal: Node): boolean {
-	const text = literal.text;
-	if (literal.type === 'raw_string_literal') {
-		return text.slice(1, -1).replaceAll('\r', '') === 'testing';
-	}
-	// Decode the import path before checking for testing.
-	// 检查 testing 导入前先解码路径
-	const decoded = text
-		.slice(1, -1)
-		.replace(
-			/\\(?:x[\da-fA-F]{2}|u[\da-fA-F]{4}|U[\da-fA-F]{8}|[0-7]{3}|[\s\S])/g,
-			(escape: string) => {
-				const octal = /^\\[0-7]{3}$/.test(escape);
-				const code = Number.parseInt(escape.slice(octal ? 1 : 2), octal ? 8 : 16);
-				return code >= 0 && code < 128 ? String.fromCharCode(code) : '\0';
-			},
-		);
-	return decoded === 'testing';
-}
-
 // Detect constraints recognized from the syntax tree.
 // 检测语法树中可识别的约束接口
 function isConstraint(type: Node): boolean {

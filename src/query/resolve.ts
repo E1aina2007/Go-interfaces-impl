@@ -1,4 +1,7 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { CancellationError, Location, Range, type CancellationToken, type Uri } from 'vscode';
+import { isTestFile } from '../core/testing';
 import type { GoType } from '../core/types';
 import type { GoProvider } from '../language/provider';
 import { canonicalUri, fileKey } from '../workspace/module';
@@ -87,7 +90,8 @@ export class TypeResolver {
 		}
 		// Identify types by canonical file path and declaration offset.
 		// 使用规范文件路径和声明偏移量标识类型
-		const fileId = fileKey(await canonicalUri(location.uri.toString()));
+		const canonical = await canonicalUri(location.uri.toString());
+		const fileId = fileKey(canonical);
 		const id = `${fileId}:${declaration.start}`;
 		if (visited.has(id) || visited.size >= 32) {
 			return undefined;
@@ -169,6 +173,8 @@ export class TypeResolver {
 		}
 		const result = {
 			id,
+			packageName: file.syntax.packageName,
+			packageDirectory: path.dirname(fileURLToPath(canonical)),
 			declaration: type,
 			location: new Location(
 				location.uri,
@@ -177,7 +183,7 @@ export class TypeResolver {
 					file.document.positionAt(declaration.end),
 				),
 			),
-			testing: location.uri.path.endsWith('_test.go') && file.syntax.importsTesting,
+			testing: isTestFile(location.uri.path),
 			methods,
 			interfaces,
 		};

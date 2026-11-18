@@ -22,8 +22,10 @@ export async function toggleTestingFilter(
 		changed();
 		void window.showInformationMessage(
 			enabled
-				? l10n.t('Go Interfaces: Test source filter disabled.')
-				: l10n.t('Go Interfaces: Test source filter enabled.'),
+				? l10n.t('Go Interfaces: Test sources included in all Go files.')
+				: l10n.t(
+						'Go Interfaces: Test sources hidden in ordinary Go files; included in test files.',
+					),
 		);
 	} catch (error) {
 		output.error('Unable to update the test filter', error);

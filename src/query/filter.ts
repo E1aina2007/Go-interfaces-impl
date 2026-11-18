@@ -1,4 +1,5 @@
 import { CancellationError, Location, type CancellationToken, type Uri } from 'vscode';
+import { isTestFile } from '../core/testing';
 import type { GoProvider } from '../language/provider';
 import { GoSyntaxError, type CapturedFile, type LocatedMethod, type LocatedType } from './model';
 import type { TypeResolver } from './resolve';
@@ -46,6 +47,7 @@ export class TestingFilter {
 		const matches: LocatedType[] = [];
 		let hidden = 0;
 		const unverified = new Set<string>();
+		const embedded: { candidateId: string; concreteId: string; iface: LocatedType }[] = [];
 		for (const candidate of candidates) {
 			this.check();
 			if (subject.testing || candidate.testing) {
@@ -54,11 +56,12 @@ export class TestingFilter {
 			}
 			const concrete = subject.declaration.kind !== 'interface' ? subject : candidate;
 			const iface = subject.declaration.kind === 'interface' ? subject : candidate;
-			// Keep embedded-method candidates and mark their origins unverified.
-			// 保留嵌入方法候选并标记来源未确认
+			// Test-only direct methods can shadow promoted methods available in ordinary builds.
+			// 测试文件中的直接方法可能遮蔽普通构建中的提升方法
 			if (concrete.declaration.embedded) {
 				matches.push(candidate);
 				unverified.add(candidate.id);
+				embedded.push({ candidateId: candidate.id, concreteId: concrete.id, iface });
 				continue;
 			}
 			const requirements = await this.interfaces.collect(iface);
@@ -89,7 +92,31 @@ export class TestingFilter {
 				unverified.add(candidate.id);
 			}
 		}
+		// Use the remaining budget so these checks do not affect existing filtering decisions.
+		// 使用剩余预算核对嵌入候选，避免影响已有过滤判定
+		for (const { candidateId, concreteId, iface } of embedded) {
+			if (await this.hasOrdinaryDirectMethods(iface, concreteId)) {
+				unverified.delete(candidateId);
+			}
+		}
 		return { matches, hidden, unverified };
+	}
+
+	private async hasOrdinaryDirectMethods(
+		iface: LocatedType,
+		concreteId: string,
+	): Promise<boolean> {
+		const requirements = await this.interfaces.collect(iface);
+		if (requirements.unresolved || requirements.methods.length === 0) {
+			return false;
+		}
+		for (const method of requirements.methods) {
+			const origins = await this.origins(method);
+			if (origins?.owners.get(concreteId)?.retained !== true) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	private check(): void {
@@ -177,7 +204,7 @@ export class TestingFilter {
 			// Record production and test origins for each receiver type.
 			// 按接收者类型记录生产代码和测试代码中的方法来源
 			const sources = owners.get(owner.id) ?? { filtered: false, retained: false };
-			const filtered = location.uri.path.endsWith('_test.go') && file.syntax.importsTesting;
+			const filtered = isTestFile(location.uri.path);
 			if (filtered) {
 				sources.filtered = true;
 			} else {

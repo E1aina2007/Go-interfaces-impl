@@ -31,6 +31,9 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version-file: .nvmrc
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
       - name: Validate release version
         id: version
         shell: bash
@@ -56,6 +59,13 @@ jobs:
           }
           appendFileSync(process.env.GITHUB_OUTPUT, `tag=v${version}\n`);
           NODE
+      - name: Validate and extract release notes
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        # Validate before either GitHub Release or Marketplace can publish.
+        # 在 GitHub Release 和 Marketplace 发布前校验版本说明
+        run: node scripts/release-notes.mjs "$RELEASE_TAG" < CHANGELOG.md > release-notes.md
       - name: Skip an existing release
         id: release
         shell: bash
@@ -91,6 +101,14 @@ jobs:
               exit 1
             fi
           fi
+      - name: Upload release notes
+        if: steps.release.outputs.publish == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-notes
+          path: release-notes.md
+          if-no-files-found: error
+          retention-days: 14
 
   build:
     needs: prepare
@@ -116,6 +134,11 @@ jobs:
         with:
           name: vsix-ubuntu-latest
           path: release
+      - name: Download checked release notes
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-notes
+          path: release
       - name: Create release with VSIX and checksum
         shell: bash
         working-directory: release
@@ -134,7 +157,7 @@ jobs:
           fi
           sha256sum "$expected" > SHA256SUMS
           gh release create "$RELEASE_TAG" "$expected" SHA256SUMS \
-            --target "$RELEASE_COMMIT" --title "$RELEASE_TAG" --generate-notes
+            --target "$RELEASE_COMMIT" --title "$RELEASE_TAG" --notes-file release-notes.md
 
   marketplace:
     name: Publish VS Code Marketplace
