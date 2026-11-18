@@ -9,6 +9,7 @@ import (
 	"github.com/E1aina2007/Go-interfaces-impl/examples/acceptance/generics"
 	"github.com/E1aina2007/Go-interfaces-impl/examples/acceptance/shapes"
 	"github.com/E1aina2007/Go-interfaces-impl/examples/acceptance/store"
+	"github.com/E1aina2007/Go-interfaces-impl/examples/acceptance/store/cache"
 	"github.com/E1aina2007/Go-interfaces-impl/examples/acceptance/store/memory"
 	"github.com/E1aina2007/Go-interfaces-impl/examples/acceptance/stream"
 )
@@ -22,10 +23,11 @@ func main() {
 	var shape shapes.Shape = shapes.Rect{Width: 3, Height: 4}
 	fmt.Printf("Shape: area=%.0f perimeter=%.0f\n", shape.Area(), shape.Perimeter())
 
-	var data store.Store = &memory.Memory{}
-	data.Put("language", "Go")
-	value, ok := data.Get("language")
-	fmt.Printf("Store: language=%s found=%t\n", value, ok)
+	for _, data := range []store.Store{&memory.Memory{}, &cache.Memory{}} {
+		data.Put("language", "Go")
+		value, ok := data.Get("language")
+		fmt.Printf("%T: language=%s found=%t\n", data, value, ok)
+	}
 
 	var buffer stream.ReadWriter = &stream.Buffer{}
 	if _, err := buffer.Write([]byte("Go")); err != nil {

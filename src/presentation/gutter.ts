@@ -29,7 +29,7 @@ import {
 	type OpenRelationArguments,
 	type ShowRelationsArguments,
 } from './annotationModel';
-import { relationDirection, relationSummary, unverifiedNote } from './labels';
+import { labeledMatches, relationDirection, relationSummary, unverifiedNote } from './labels';
 
 function appendLink(
 	hover: MarkdownString,
@@ -135,16 +135,11 @@ export class ImplementationGutter implements Disposable, HoverProvider {
 		if (args) {
 			hover.isTrusted = { enabledCommands: [openRelation, showRelations] };
 		}
-		for (const match of result.matches.slice(0, inlineLimit)) {
+		for (const { match, label } of labeledMatches(result, inlineLimit)) {
 			if (args) {
-				appendLink(
-					hover,
-					match.declaration.name,
-					openRelation,
-					openRelationArguments(args, match.id),
-				);
+				appendLink(hover, label, openRelation, openRelationArguments(args, match.id));
 			} else {
-				hover.appendText(match.declaration.name);
+				hover.appendText(label);
 			}
 			hover.appendText(
 				` · ${workspace.asRelativePath(match.location.uri)}${unverifiedNote(result, match.id)}`,

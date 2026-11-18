@@ -24,7 +24,7 @@ import {
 	type ShowRelationsArguments,
 } from './annotationModel';
 import { findImplementations } from './commands';
-import { relationDirection, relationSummary } from './labels';
+import { labeledMatches, relationDirection, relationSummary } from './labels';
 
 // Show stale results without navigation commands.
 // 展示过期结果时不提供导航命令
@@ -45,11 +45,11 @@ function relationLenses(
 			arguments: args ? [...args] : [],
 		}),
 	];
-	for (const match of result.matches.slice(0, inlineLimit)) {
+	for (const { match, label } of labeledMatches(result, inlineLimit)) {
 		const location = `${workspace.asRelativePath(match.location.uri)}:${match.location.range.start.line + 1}`;
 		lenses.push(
 			new CodeLens(range, {
-				title: `${match.declaration.name}${result.unverifiedTesting.has(match.id) ? ' ?' : ''}`,
+				title: `${label}${result.unverifiedTesting.has(match.id) ? ' ?' : ''}`,
 				tooltip: `${location}\n${args ? summary : refreshing}`,
 				command: args ? openRelation : '',
 				arguments: args ? openRelationArguments(args, match.id) : [],

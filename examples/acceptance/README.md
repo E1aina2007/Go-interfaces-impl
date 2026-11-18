@@ -13,13 +13,15 @@
 | 文件                                   | 查询示例                                                                          |
 | -------------------------------------- | --------------------------------------------------------------------------------- |
 | [shapes/shapes.go](shapes/shapes.go)   | 查询 `Shape` 的三个实现。`Rect` 和 `Square` 使用值接收者，`Circle` 使用指针接收者 |
-| [store/store.go](store/store.go)       | `Store` 由另一个包中的 [Memory](store/memory/memory.go) 实现                      |
+| [store/store.go](store/store.go)       | 查询 `store.Store` 可看到 `cache.Memory` 和 `memory.Memory`                       |
 | [stream/stream.go](stream/stream.go)   | `ReadWriter` 组合 `Reader` 和 `Writer`，`Buffer` 通过嵌入 `bytes.Buffer` 实现     |
 | [defined/types.go](defined/types.go)   | `FormatterFunc` 将普通函数适配为 `Formatter`                                      |
 | [generics/types.go](generics/types.go) | 泛型结构体 `Box[T]` 实现 `Label`                                                  |
 
+在 [memory/memory.go](store/memory/memory.go) 的 `Memory` 声明上方点击 `cache.Store` 和 `store.Store`，可以分别跳到 [cache 包的接口](store/cache/cache.go) 和 [store 包的接口](store/store.go)。悬停链接和完整列表也使用相同的名称。
+
 ## 测试来源过滤
 
-1. 在 [store.go](store/store.go) 查询 `Store`。默认开启过滤，列表显示 `Memory`。
-2. 执行 **Go Interfaces: 切换测试来源过滤** 关闭过滤，再查询 `Store`。列表会增加测试文件里的 `fakeStore`。
-3. 重新开启过滤。在 [fake_test.go](store/memory/fake_test.go) 中把光标放在 `Store` 引用上，执行 **Go Interfaces: 查看实现接口的类型**。从测试文件发起查询时，列表包含 `Memory` 和 `fakeStore`。
+1. 在 [store.go](store/store.go) 查询 `Store`。默认开启过滤，列表显示 `cache.Memory` 和 `memory.Memory`。
+2. 执行 **Go Interfaces: 切换测试来源过滤** 关闭过滤，再查询 `Store`。列表会增加测试文件里的 `memory.fakeStore`。
+3. 重新开启过滤。在 [fake_test.go](store/memory/fake_test.go) 中把光标放在 `Store` 引用上，执行 **Go Interfaces: 查看实现接口的类型**。这次从测试文件发起查询，两个普通实现和 `memory.fakeStore` 都会显示。

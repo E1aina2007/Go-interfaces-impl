@@ -13,13 +13,15 @@ Click a related type name above a declaration to navigate, or click the directio
 | File                                   | What to query                                                                                                      |
 | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | [shapes/shapes.go](shapes/shapes.go)   | Query `Shape` for three implementations. `Rect` and `Square` use value receivers. `Circle` uses pointer receivers. |
-| [store/store.go](store/store.go)       | [Memory](store/memory/memory.go) implements `Store` from another package.                                          |
+| [store/store.go](store/store.go)       | Query `store.Store` to see `cache.Memory` and `memory.Memory`.                                                     |
 | [stream/stream.go](stream/stream.go)   | `ReadWriter` combines `Reader` and `Writer`. `Buffer` implements it by embedding `bytes.Buffer`.                   |
 | [defined/types.go](defined/types.go)   | `FormatterFunc` adapts a function to the `Formatter` interface.                                                    |
 | [generics/types.go](generics/types.go) | The generic struct `Box[T]` implements `Label`.                                                                    |
 
+Above the `Memory` declaration in [memory/memory.go](store/memory/memory.go), select `cache.Store` and `store.Store` to open the interfaces in the [cache package](store/cache/cache.go) and the [store package](store/store.go). The hover links and the full list use the same names.
+
 ## Test source filtering
 
-1. Query `Store` in [store.go](store/store.go). Filtering is on by default and the list shows `Memory`.
-2. Run **Go Interfaces: Toggle Test Source Filter** to turn filtering off, then query `Store` again. The list also shows `fakeStore` from the test file.
-3. Turn filtering back on. Place the cursor on the `Store` reference in [fake_test.go](store/memory/fake_test.go) and run **Go Interfaces: Show Implementing Types**. This test-file query includes both `Memory` and `fakeStore`.
+1. Query `Store` in [store.go](store/store.go). Filtering is on by default and the list shows `cache.Memory` and `memory.Memory`.
+2. Run **Go Interfaces: Toggle Test Source Filter** to turn filtering off, then query `Store` again. The list also shows `memory.fakeStore` from the test file.
+3. Turn filtering back on. Place the cursor on the `Store` reference in [fake_test.go](store/memory/fake_test.go) and run **Go Interfaces: Show Implementing Types**. This test-file query includes both ordinary implementations and `memory.fakeStore`.

@@ -12,6 +12,8 @@ export interface CapturedFile {
 
 export interface LocatedType {
 	readonly id: string;
+	readonly packageName: string | undefined;
+	readonly packageDirectory: string;
 	readonly declaration: GoType;
 	readonly location: Location;
 	readonly testing: boolean;

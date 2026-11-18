@@ -64,6 +64,8 @@ Go 的 interface 采用隐式实现，这使得其能被更灵活地使用，但
 
 打开 Go 文件后，插件会查询当前文件中可见类型声明的实现关系。具体类型上方显示 `Implements`，接口上方显示 `Implemented by`。点击关联名称可跳转；点击关系方向与数量可打开完整列表。名称后的 `?` 表示测试来源未能完全确认。
 
+行内名称、悬停链接和列表条目都使用声明中的包名，例如 `cache.Memory` 和 `memory.Memory`。如果结果来自不同目录，包名和类型名又都相同，名称后会附上相对于当前 Go module 的目录，例如 `cache.Memory (internal/cache)`。
+
 也可以将光标放在类型名称上，通过命令面板运行：
 
 - **Go Interfaces: 查看实现的接口** / **Show Implemented Interfaces**
