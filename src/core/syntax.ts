@@ -28,6 +28,12 @@ export class GoSyntax {
 			throw new Error(l10n.t('Unable to parse the Go document.'));
 		}
 		try {
+			const clause = tree.rootNode.namedChildren.find(
+				(node) => node?.type === 'package_clause',
+			);
+			const packageName = clause?.namedChildren.find(
+				(node) => node?.type === 'package_identifier',
+			)?.text;
 			const declarations: GoDeclaration[] = [];
 			const interfaceMethods: GoInterfaceMethod[] = [];
 			const interfaceEmbeddings: GoInterfaceEmbedding[] = [];
@@ -86,6 +92,7 @@ export class GoSyntax {
 				}
 			}
 			return {
+				packageName,
 				declarations,
 				interfaceMethods,
 				interfaceEmbeddings,

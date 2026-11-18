@@ -1,5 +1,40 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { l10n } from 'vscode';
-import type { QueryResult } from '../query/model';
+import type { LocatedType, QueryResult } from '../query/model';
+
+export function qualifiedTypeName(type: LocatedType): string {
+	return type.packageName
+		? `${type.packageName}.${type.declaration.name}`
+		: type.declaration.name;
+}
+
+export function labeledMatches(
+	result: QueryResult,
+	limit?: number,
+): { match: LocatedType; label: string }[] {
+	const directories = new Map<string, string>();
+	const ambiguous = new Set<string>();
+	// Check all visible matches before limiting inline labels to the first few.
+	// 先检查全部可见结果中的同名类型，再截取行内显示的条目
+	for (const match of result.matches) {
+		const name = qualifiedTypeName(match);
+		const previous = directories.get(name);
+		if (previous !== undefined && previous !== match.packageDirectory) {
+			ambiguous.add(name);
+		}
+		directories.set(name, match.packageDirectory);
+	}
+	const root = fileURLToPath(result.module.rootUri);
+	return result.matches.slice(0, limit).map((match) => {
+		const name = qualifiedTypeName(match);
+		if (!ambiguous.has(name)) {
+			return { match, label: name };
+		}
+		const directory = path.relative(root, match.packageDirectory).split(path.sep).join('/');
+		return { match, label: `${name} (${directory || '.'})` };
+	});
+}
 
 export function relationDirection(result: QueryResult): string {
 	return result.subject.declaration.kind === 'interface'

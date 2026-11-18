@@ -64,6 +64,8 @@ See the [full multi-type acceptance example](../examples/acceptance/shapes/shape
 
 Open a Go file to see relationships for visible type declarations. A concrete type shows `Implements` above its declaration; an interface shows `Implemented by`. Select a related name to navigate, or select the direction and count to open the full result list. A trailing `?` means the test source could not be fully confirmed.
 
+Inline names, hover links, and list entries use the declared package name, for example `cache.Memory` and `memory.Memory`. When matches in different directories share both names, their labels include the directory relative to the current Go module, as in `cache.Memory (internal/cache)`.
+
 You can also place the cursor on a type name and run a command from the Command Palette:
 
 - **Go Interfaces: Show Implemented Interfaces**
