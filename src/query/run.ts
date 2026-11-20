@@ -1,8 +1,7 @@
-import path from 'node:path';
 import { Location, l10n, workspace, type CancellationToken, type Position, type Uri } from 'vscode';
 import { isTestFile } from '../core/testing';
 import type { GoProvider } from '../language/provider';
-import { belongsToModule, findModule } from '../workspace/module';
+import { belongsToModule, findModule, isGoConfigFile } from '../workspace/module';
 import { TestingFilter } from './filter';
 import { GenericRelations, supportsType } from './generics';
 import {
@@ -42,9 +41,7 @@ export async function runQuery(
 	}
 	if (
 		workspace.textDocuments.some(
-			(document) =>
-				document.isDirty &&
-				/^go\.(mod|sum|work|work\.sum)$/.test(path.basename(document.fileName)),
+			(document) => document.isDirty && isGoConfigFile(document.fileName),
 		)
 	) {
 		throw new Error(

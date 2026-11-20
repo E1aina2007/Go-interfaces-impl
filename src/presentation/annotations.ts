@@ -49,7 +49,11 @@ export class ImplementationAnnotations implements Disposable {
 			}),
 			window.onDidChangeTextEditorVisibleRanges(() => this.refresh.visibleChanged()),
 			workspace.onDidChangeConfiguration((event) => {
-				if (event.affectsConfiguration('editor.codeLens')) {
+				if (
+					event.affectsConfiguration('editor.codeLens') ||
+					event.affectsConfiguration('goInterfaces.codeLens') ||
+					event.affectsConfiguration('goInterfaces.gutterIcons')
+				) {
 					this.documents.prune();
 					this.refresh.visibleChanged();
 					this.changed.fire({ kind: 'editors' });

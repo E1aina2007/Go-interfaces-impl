@@ -8,7 +8,7 @@ import {
 import { StaleQueryError } from '../query/model';
 import type { ImplementationQueries } from '../query/service';
 import type { AnnotationDocuments } from './annotationDocuments';
-import { annotationsEnabled, type Annotation, type DocumentAnnotations } from './annotationModel';
+import type { Annotation, DocumentAnnotations } from './annotationModel';
 
 const refreshDelay = 400;
 
@@ -57,8 +57,6 @@ export class AnnotationRefresh implements Disposable {
 	private visible(state: DocumentAnnotations, item: Annotation): boolean {
 		return (
 			this.documents.get(state.document) === state &&
-			(annotationsEnabled(state.document, 'codeLens') ||
-				annotationsEnabled(state.document, 'gutterIcons')) &&
 			window.visibleTextEditors.some(
 				(editor) =>
 					editor.document === state.document &&
@@ -71,6 +69,9 @@ export class AnnotationRefresh implements Disposable {
 		if (this.disposed) {
 			return;
 		}
+		// VS Code can briefly report no visible editors during a tab switch.
+		// 切换标签页时 VS Code 可能短暂报告没有可见编辑器
+		this.documents.trim();
 		if (this.running) {
 			this.refreshAgain = true;
 			return;
@@ -82,7 +83,7 @@ export class AnnotationRefresh implements Disposable {
 			}
 			// Query visible declarations in a debounced, serialized refresh loop.
 			// 在防抖串行的刷新流程中查询可见声明
-			for (const state of this.documents.values()) {
+			for (const state of this.documents.visible()) {
 				for (const item of state.items) {
 					if (
 						this.disposed ||
