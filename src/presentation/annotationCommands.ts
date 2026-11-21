@@ -152,7 +152,7 @@ export class AnnotationCommands implements Disposable {
 				createRelationItems(result, false),
 				createRelationPickOptions(result),
 			);
-			if (selected) {
+			if (selected?.match) {
 				await this.navigate(openRelationArguments(args, selected.match.id));
 			}
 		} catch (error) {

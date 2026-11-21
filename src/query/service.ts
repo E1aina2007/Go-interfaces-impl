@@ -11,7 +11,7 @@ import {
 } from 'vscode';
 import type { GoSyntax } from '../core/syntax';
 import { GoProvider } from '../language/provider';
-import { StaleQueryError, type CapturedFile, type QueryKind, type QueryResult } from './model';
+import { StaleQueryError, type CapturedFile, type QueryOptions, type QueryResult } from './model';
 import { runQuery } from './run';
 
 export class ImplementationQueries implements Disposable {
@@ -49,12 +49,19 @@ export class ImplementationQueries implements Disposable {
 			}
 			this.invalidated.fire();
 		};
-		const watcher = workspace.createFileSystemWatcher('**/*.{go,mod,sum,work}');
+		const watchers = ['**/*.{go,mod,sum,work}', '**/vendor/modules.txt'].flatMap(
+			(pattern): Disposable[] => {
+				const watcher = workspace.createFileSystemWatcher(pattern);
+				return [
+					watcher,
+					watcher.onDidCreate(invalidate),
+					watcher.onDidChange(invalidate),
+					watcher.onDidDelete(invalidate),
+				];
+			},
+		);
 		this.subscriptions = [
-			watcher,
-			watcher.onDidCreate(invalidate),
-			watcher.onDidChange(invalidate),
-			watcher.onDidDelete(invalidate),
+			...watchers,
 			workspace.onDidOpenTextDocument((document) => {
 				track(document);
 				if (document.isDirty) {
@@ -98,9 +105,8 @@ export class ImplementationQueries implements Disposable {
 	async query(
 		uri: Uri,
 		position: Position,
-		expected: QueryKind,
+		options: QueryOptions,
 		caller: CancellationToken,
-		sourceVersion?: number,
 	): Promise<QueryResult> {
 		const request = new CancellationTokenSource();
 		this.pending.add(request);
@@ -164,8 +170,7 @@ export class ImplementationQueries implements Disposable {
 				},
 				uri,
 				position,
-				expected,
-				sourceVersion,
+				options,
 			);
 		} catch (error) {
 			check();

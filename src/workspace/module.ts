@@ -34,7 +34,10 @@ export async function canonicalUri(uri: string): Promise<string> {
 }
 
 export async function findModule(uri: string): Promise<GoModule | undefined> {
-	let directory = path.dirname(fileURLToPath(await canonicalUri(uri)));
+	return findModuleFromDirectory(path.dirname(fileURLToPath(await canonicalUri(uri))));
+}
+
+export async function findModuleFromDirectory(directory: string): Promise<GoModule | undefined> {
 	for (;;) {
 		const filename = path.join(directory, 'go.mod');
 		try {
@@ -45,7 +48,7 @@ export async function findModule(uri: string): Promise<GoModule | undefined> {
 				};
 			}
 		} catch (error) {
-			if (!(error instanceof Error) || !('code' in error) || error.code !== 'ENOENT') {
+			if (!isMissingPath(error)) {
 				throw error;
 			}
 		}
@@ -57,17 +60,10 @@ export async function findModule(uri: string): Promise<GoModule | undefined> {
 	}
 }
 
-export async function belongsToModule(uri: string, module: GoModule): Promise<boolean> {
-	const canonical = await canonicalUri(uri);
-	const relative = path.relative(fileURLToPath(module.rootUri), fileURLToPath(canonical));
-	if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
-		return false;
-	}
-	// Check module ownership and exclude vendor source files.
-	// 核对模块归属并排除 vendor 源码
-	if (relative.split(path.sep).includes('vendor')) {
-		return false;
-	}
-	const owner = await findModule(canonical);
-	return owner !== undefined && fileKey(owner.goModUri) === fileKey(module.goModUri);
+export function isMissingPath(error: unknown): boolean {
+	return (
+		error instanceof Error &&
+		'code' in error &&
+		(error.code === 'ENOENT' || error.code === 'ENOTDIR')
+	);
 }

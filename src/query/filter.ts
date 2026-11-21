@@ -1,7 +1,13 @@
 import { CancellationError, Location, type CancellationToken, type Uri } from 'vscode';
 import { isTestFile } from '../core/testing';
 import type { GoProvider } from '../language/provider';
-import { GoSyntaxError, type CapturedFile, type LocatedMethod, type LocatedType } from './model';
+import {
+	GoSyntaxError,
+	type CapturedFile,
+	type LocatedMethod,
+	type LocatedType,
+	type RelationMatch,
+} from './model';
 import type { TypeResolver } from './resolve';
 import { InterfaceMethods } from './interfaces';
 
@@ -18,8 +24,8 @@ interface MethodOrigins {
 	readonly classified: boolean;
 }
 
-export interface TestingFilterResult {
-	readonly matches: readonly LocatedType[];
+interface TestingFilterResult {
+	readonly matches: readonly RelationMatch[];
 	readonly hidden: number;
 	readonly unverified: ReadonlySet<string>;
 }
@@ -34,7 +40,7 @@ export class TestingFilter {
 		private readonly provider: GoProvider,
 		private readonly resolver: TypeResolver,
 		private readonly read: (uri: Uri) => Promise<CapturedFile>,
-		private readonly belongs: (uri: string) => Promise<boolean>,
+		private readonly includesMethodFile: (uri: string) => Promise<boolean>,
 		private readonly token: CancellationToken,
 	) {
 		this.interfaces = new InterfaceMethods(resolver, token);
@@ -42,9 +48,9 @@ export class TestingFilter {
 
 	async apply(
 		subject: LocatedType,
-		candidates: readonly LocatedType[],
+		candidates: readonly RelationMatch[],
 	): Promise<TestingFilterResult> {
-		const matches: LocatedType[] = [];
+		const matches: RelationMatch[] = [];
 		let hidden = 0;
 		const unverified = new Set<string>();
 		const embedded: { candidateId: string; concreteId: string; iface: LocatedType }[] = [];
@@ -159,7 +165,7 @@ export class TestingFilter {
 				classified = false;
 				continue;
 			}
-			if (!(await this.belongs(location.uri.toString()))) {
+			if (!(await this.includesMethodFile(location.uri.toString()))) {
 				continue;
 			}
 			if (this.inspected >= methodLocationLimit) {

@@ -1,5 +1,5 @@
 {
-  "extension.description": "在 Go module 内查看接口与具名类型的实现关系（开发中）",
+  "extension.description": "查看本 Go module、标准库与依赖中的接口实现关系（开发中）",
   "command.showOutput": "查看输出",
   "command.findImplementations": "查看类型实现关系",
   "command.findInterfaces": "查看实现的接口",

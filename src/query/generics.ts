@@ -28,7 +28,7 @@ export class GenericRelations {
 		private readonly provider: GoProvider,
 		private readonly resolver: TypeResolver,
 		private readonly read: (uri: Uri) => Promise<CapturedFile>,
-		private readonly belongs: (uri: string) => Promise<boolean>,
+		private readonly includesMethodFile: (uri: string) => Promise<boolean>,
 		private readonly token: CancellationToken,
 		private readonly check: () => void,
 	) {
@@ -64,8 +64,12 @@ export class GenericRelations {
 		);
 		for (const location of locations) {
 			this.check();
-			if (location.uri.scheme !== 'file' || !(await this.belongs(location.uri.toString())))
+			if (
+				location.uri.scheme !== 'file' ||
+				!(await this.includesMethodFile(location.uri.toString()))
+			) {
 				continue;
+			}
 			if (this.inspected >= methodLocationLimit) return undefined;
 			this.inspected++;
 			const file = await this.read(location.uri);

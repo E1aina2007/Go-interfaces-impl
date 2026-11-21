@@ -99,9 +99,8 @@ export class ImplementationCommands implements Disposable {
 						return await this.queries.query(
 							resource,
 							cursor,
-							kind,
+							{ expected: kind, scope: 'all', sourceVersion },
 							request.token,
-							sourceVersion,
 						);
 					} finally {
 						cancel.dispose();
@@ -117,7 +116,7 @@ export class ImplementationCommands implements Disposable {
 			if (result.matches.length === 0) {
 				void window.showInformationMessage(
 					l10n.t(
-						'The Go language service returned no displayable matches in this module. {0}.',
+						'The Go language service returned no displayable matches. {0}.',
 						relationSummary(result),
 					),
 				);
@@ -128,7 +127,7 @@ export class ImplementationCommands implements Disposable {
 				createRelationPickOptions(result),
 				request.token,
 			);
-			if (!selected) {
+			if (!selected?.match) {
 				return;
 			}
 			await openTarget(selected.match.location, () => {

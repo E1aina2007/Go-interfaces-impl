@@ -1,7 +1,8 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { l10n } from 'vscode';
-import type { LocatedType, QueryResult } from '../query/model';
+import { l10n, workspace } from 'vscode';
+import type { LocatedType, QueryResult, RelationMatch } from '../query/model';
+import type { RelationSourceKind } from '../workspace/relationSources';
 
 export function qualifiedTypeName(type: LocatedType): string {
 	return type.packageName
@@ -12,7 +13,7 @@ export function qualifiedTypeName(type: LocatedType): string {
 export function labeledMatches(
 	result: QueryResult,
 	limit?: number,
-): { match: LocatedType; label: string }[] {
+): { match: RelationMatch; label: string }[] {
 	const directories = new Map<string, string>();
 	const ambiguous = new Set<string>();
 	// Check all visible matches before limiting inline labels to the first few.
@@ -31,15 +32,40 @@ export function labeledMatches(
 		if (!ambiguous.has(name)) {
 			return { match, label: name };
 		}
-		const directory = path.relative(root, match.packageDirectory).split(path.sep).join('/');
-		return { match, label: `${name} (${directory || '.'})` };
+		const { kind, importPath, version } = match.source;
+		if (kind === 'module') {
+			const directory = path.relative(root, match.packageDirectory).split(path.sep).join('/');
+			return { match, label: `${name} (${directory || '.'})` };
+		}
+		const qualifier = `${relationSourceLabel(kind)} ${importPath ?? name}${version ? `@${version}` : ''}`;
+		return { match, label: `${name} (${qualifier})` };
 	});
+}
+
+export function relationSourceLabel(kind: RelationSourceKind): string {
+	switch (kind) {
+		case 'module':
+			return l10n.t('Current module');
+		case 'standard':
+			return l10n.t('Standard library');
+		case 'dependency':
+			return l10n.t('Dependencies');
+	}
 }
 
 export function relationDirection(result: QueryResult): string {
 	return result.subject.declaration.kind === 'interface'
 		? l10n.t('Implemented by')
 		: l10n.t('Implements');
+}
+
+export function relationLocation(match: RelationMatch): string {
+	const { uri, range } = match.location;
+	const filename =
+		match.source.kind === 'module'
+			? workspace.asRelativePath(uri)
+			: path.posix.basename(uri.path);
+	return `${filename}:${range.start.line + 1}`;
 }
 
 export function relationSummary(result: QueryResult): string {

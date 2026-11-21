@@ -25,14 +25,14 @@ Go uses implicit interface implementation, which makes types flexible to use but
 
 ## Features
 
-| Capability                | Description                                                                                              |
-| ------------------------- | -------------------------------------------------------------------------------------------------------- |
-| **Two-way lookup**        | See which interfaces a type implements, or which types implement an interface                            |
-| **Inline relationships**  | View related names and direction icons near declarations, with hover details                             |
-| **Fast navigation**       | Jump from a related name or open the complete result list                                                |
-| **Go module scope**       | Search within the current file's Go module, excluding nested modules, vendor, and dependency directories |
-| **Test source filtering** | Hide implementations that can be identified as test-related; keep uncertain results marked for review    |
-| **Editor integration**    | Supports English and Simplified Chinese, as well as light and dark themes                                |
+| Capability                | Description                                                                                           |
+| ------------------------- | ----------------------------------------------------------------------------------------------------- |
+| **Two-way lookup**        | See which interfaces a type implements, or which types implement an interface                         |
+| **Inline relationships**  | View related names and direction icons near declarations, with hover details                          |
+| **Fast navigation**       | Jump from a related name or open the complete result list                                             |
+| **Library relationships** | Show current-module matches automatically and query the standard library and dependencies on demand   |
+| **Test source filtering** | Hide implementations that can be identified as test-related; keep uncertain results marked for review |
+| **Editor integration**    | Supports English and Simplified Chinese, as well as light and dark themes                             |
 
 The extension currently recognizes relationships for structs, named functions, basic types, slices, arrays, maps, and channels.
 
@@ -62,9 +62,9 @@ See the [full multi-type acceptance example](../examples/acceptance/shapes/shape
 
 ## Using the extension
 
-Open a Go file to see relationships for visible type declarations. A concrete type shows `Implements` above its declaration; an interface shows `Implemented by`. Select a related name to navigate, or select the direction and count to open the full result list. A trailing `?` means the test source could not be fully confirmed.
+Open a Go file to see current-module relationships for visible declarations. A concrete type shows `Implements` above its declaration and an interface shows `Implemented by`. Select a related name to navigate or select the direction and count to open the module results. A trailing `?` marks an unverified test source.
 
-Inline names, hover links, and list entries use the declared package name, for example `cache.Memory` and `memory.Memory`. When matches in different directories share both names, their labels include the directory relative to the current Go module, as in `cache.Memory (internal/cache)`.
+Command Palette queries show a list grouped by current module, standard library, and dependencies, with import paths and known dependency versions. Labels use declared package names. When packages share a label, current-module matches show relative directories and external matches show their origin and import path.
 
 You can also place the cursor on a type name and run a command from the Command Palette:
 
@@ -89,7 +89,7 @@ Related names above declarations are controlled by VS Code's `editor.codeLens` s
 - Value and pointer forms are not shown separately. Generic interfaces, generic aliases and defined references, promoted generic methods, parameter-dependent method signatures, empty interfaces, and type-set constraints are outside the supported scope. Generic instantiations are not counted separately. Generic relations without the necessary method evidence count as unsupported, even when test filtering is disabled.
 - Test source filtering is enabled by default. For queries from ordinary Go files, a relationship is hidden when its canonical interface or concrete type is declared in a `_test.go` file. For a concrete type without embedded fields, a required direct method confirmed only in test files also hides the relationship. Test source classification uses the filename regardless of imports. An ordinary source for the same method satisfies its source check. Queries from declarations, references, or aliases in test files include ordinary and test relations. Disabling filtering includes them everywhere. Summaries show the effective filter state. Generic eligibility and module boundaries still apply.
 - During test source filtering, a relationship for a non-generic struct with embedded fields is confirmed when the language service identifies every required method as a direct method declared on that struct in an ordinary Go file. Relationships that rely on promoted methods or lack this evidence remain visible and marked as unverified.
-- Queries are scoped to the nearest `go.mod` for the current file. Other modules in a `go.work` workspace are not included. Virtual and untrusted workspaces are not supported.
+- Queries start in a workspace Go file and use its nearest `go.mod` as context. External results are limited to identifiable standard library and dependency locations returned by the language service. Dependency sources include the module cache, packages listed in `vendor/modules.txt`, and local dependencies required by the current module. Virtual and untrusted workspaces are not supported.
 
 ## Feedback and releases
 

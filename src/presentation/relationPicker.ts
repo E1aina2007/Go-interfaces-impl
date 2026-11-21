@@ -1,23 +1,40 @@
-import { ThemeIcon, workspace, type QuickPickItem, type QuickPickOptions } from 'vscode';
-import type { LocatedType, QueryResult } from '../query/model';
+import {
+	QuickPickItemKind,
+	ThemeIcon,
+	workspace,
+	type QuickPickItem,
+	type QuickPickOptions,
+} from 'vscode';
+import type { QueryResult, RelationMatch } from '../query/model';
+import type { RelationSourceKind } from '../workspace/relationSources';
 import {
 	labeledMatches,
 	qualifiedTypeName,
 	relationDirection,
+	relationLocation,
+	relationSourceLabel,
 	relationSummary,
 	unverifiedNote,
 } from './labels';
 
 export interface RelationItem extends QuickPickItem {
-	readonly match: LocatedType;
+	readonly match?: RelationMatch;
 }
 
 export function createRelationItems(result: QueryResult, showIcons: boolean): RelationItem[] {
-	return labeledMatches(result).map(({ match, label }) => {
+	const items: RelationItem[] = [];
+	let group: RelationSourceKind | undefined;
+	for (const { match, label } of labeledMatches(result)) {
+		const { kind, importPath, version } = match.source;
+		if (group !== kind) {
+			group = kind;
+			items.push({ kind: QuickPickItemKind.Separator, label: relationSourceLabel(kind) });
+		}
+		const packagePath = importPath ?? workspace.asRelativePath(match.location.uri);
 		const item: RelationItem = {
 			label,
-			description: workspace.asRelativePath(match.location.uri),
-			detail: `${match.location.uri.fsPath}:${match.location.range.start.line + 1}${unverifiedNote(result, match.id)}`,
+			description: version ? `${packagePath} · ${version}` : packagePath,
+			detail: `${relationLocation(match)}${unverifiedNote(result, match.id)}`,
 			match,
 		};
 		if (showIcons) {
@@ -34,8 +51,9 @@ export function createRelationItems(result: QueryResult, showIcons: boolean): Re
 			};
 			item.iconPath = new ThemeIcon(icons[kind]);
 		}
-		return item;
-	});
+		items.push(item);
+	}
+	return items;
 }
 
 export function createRelationPickOptions(result: QueryResult): QuickPickOptions {
