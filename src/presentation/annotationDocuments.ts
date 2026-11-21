@@ -59,6 +59,18 @@ export class AnnotationDocuments implements Disposable {
 			: undefined;
 	}
 
+	// Allow completed queries to use the retained state while the document is hidden.
+	// 文档隐藏时允许已完成的查询使用仍在缓存中的状态
+	isCurrent(state: DocumentAnnotations): boolean {
+		const { document, version } = state;
+		return (
+			!this.disposed &&
+			!document.isClosed &&
+			document.version === version &&
+			this.documents.get(document.uri.toString()) === state
+		);
+	}
+
 	*visible(): IterableIterator<DocumentAnnotations> {
 		const documents = new Set(window.visibleTextEditors.map((editor) => editor.document));
 		for (const document of documents) {

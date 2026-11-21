@@ -26,7 +26,7 @@ export class ImplementationAnnotations implements Disposable {
 			syntax,
 			output,
 			(uri) => this.changed.fire({ kind: 'document', uri }),
-			() => this.refresh.schedule(),
+			() => this.refresh.documentLoaded(),
 		);
 		this.refresh = new AnnotationRefresh(this.documents, queries, output, (uri) =>
 			this.changed.fire({ kind: 'document', uri }),
@@ -60,6 +60,7 @@ export class ImplementationAnnotations implements Disposable {
 				}
 			}),
 			workspace.onDidCloseTextDocument((document) => {
+				this.refresh.cancel(document);
 				if (this.documents.drop(document)) {
 					this.refresh.visibleChanged();
 				}
