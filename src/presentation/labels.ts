@@ -59,6 +59,19 @@ export function relationDirection(result: QueryResult): string {
 		: l10n.t('Implements');
 }
 
+export function relationTitle(result: QueryResult): string {
+	return `${relationDirection(result)} (${relationSourceLabel('module')} ${result.matches.length})`;
+}
+
+export function allRelationsLabel(result: QueryResult): string {
+	if (result.matches.length > 0) {
+		return l10n.t('Show all results');
+	}
+	return result.subject.declaration.kind === 'interface'
+		? l10n.t('Show external implementers')
+		: l10n.t('Show external interfaces');
+}
+
 export function relationLocation(match: RelationMatch): string {
 	const { uri, range } = match.location;
 	const filename =

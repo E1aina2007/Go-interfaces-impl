@@ -64,7 +64,7 @@ See the [full multi-type acceptance example](../examples/acceptance/shapes/shape
 
 Open a Go file to see current-module relationships for visible declarations. A concrete type shows `Implements` above its declaration and an interface shows `Implemented by`. Select a related name to navigate or select the direction and count to open the module results. A trailing `?` marks an unverified test source.
 
-Command Palette queries show a list grouped by current module, standard library, and dependencies, with import paths and known dependency versions. Labels use declared package names. When packages share a label, current-module matches show relative directories and external matches show their origin and import path.
+When the language service returns external candidates, the annotation offers `Show all results`. If only external candidates are available, it offers `Show external implementers` or `Show external interfaces`. Select it to query and open a list grouped by current module, standard library, and dependencies, with import paths and known dependency versions. Labels use declared package names. When different packages share a label, current-module matches show relative directories and external matches show their origin and import path.
 
 You can also place the cursor on a type name and run a command from the Command Palette:
 

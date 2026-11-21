@@ -20,21 +20,29 @@ import {
 import type { ImplementationAnnotations } from './annotations';
 import {
 	annotationsEnabled,
+	hasRelationActions,
 	inlineLimit,
 	openRelation,
 	openRelationArguments,
 	relationArguments,
 	shownResult,
+	showAllRelations,
 	showRelations,
 	type OpenRelationArguments,
 	type ShowRelationsArguments,
 } from './annotationModel';
-import { labeledMatches, relationDirection, relationSummary, unverifiedNote } from './labels';
+import {
+	allRelationsLabel,
+	labeledMatches,
+	relationSummary,
+	relationTitle,
+	unverifiedNote,
+} from './labels';
 
 function appendLink(
 	hover: MarkdownString,
 	label: string,
-	command: typeof openRelation | typeof showRelations,
+	command: typeof openRelation | typeof showRelations | typeof showAllRelations,
 	args: ShowRelationsArguments | OpenRelationArguments,
 ): void {
 	// Build a command link with an escaped label and encoded arguments.
@@ -124,16 +132,23 @@ export class ImplementationGutter implements Disposable, HoverProvider {
 		}
 		const item = state.items.find((item) => item.range.contains(position));
 		const shown = item && shownResult(item);
-		if (!item || !shown || shown.result.matches.length === 0) {
+		if (!item || !shown || !hasRelationActions(shown.result)) {
 			return undefined;
 		}
 		const result = shown.result;
 		const hover = new MarkdownString();
-		hover.appendText(`${relationDirection(result)} (${result.matches.length})`);
-		hover.appendMarkdown('\n\n');
 		const args = shown.stale ? undefined : relationArguments(state, item, result);
 		if (args) {
-			hover.isTrusted = { enabledCommands: [openRelation, showRelations] };
+			hover.isTrusted = { enabledCommands: [openRelation, showRelations, showAllRelations] };
+		}
+		if (result.matches.length > 0) {
+			const title = relationTitle(result);
+			if (args) {
+				appendLink(hover, title, showRelations, args);
+			} else {
+				hover.appendText(title);
+			}
+			hover.appendMarkdown('\n\n');
 		}
 		for (const { match, label } of labeledMatches(result, inlineLimit)) {
 			if (args) {
@@ -146,13 +161,22 @@ export class ImplementationGutter implements Disposable, HoverProvider {
 			);
 			hover.appendMarkdown('\n\n');
 		}
-		if (args) {
-			appendLink(hover, l10n.t('Show all results'), showRelations, args);
-		} else {
-			hover.appendText(l10n.t('Refreshing after a change…'));
+		if (result.hasExternalCandidates) {
+			const label = allRelationsLabel(result);
+			if (args) {
+				appendLink(hover, label, showAllRelations, args);
+			} else {
+				hover.appendText(label);
+			}
+			hover.appendMarkdown('\n\n');
 		}
-		hover.appendMarkdown('\n\n');
-		hover.appendText(relationSummary(result));
+		if (!args) {
+			hover.appendText(l10n.t('Refreshing after a change…'));
+			hover.appendMarkdown('\n\n');
+		}
+		if (result.matches.length > 0) {
+			hover.appendText(relationSummary(result));
+		}
 		return new Hover(hover, item.range);
 	}
 
@@ -169,7 +193,7 @@ export class ImplementationGutter implements Disposable, HoverProvider {
 		if (view.kind === 'loaded' && enabled) {
 			for (const item of view.state.items) {
 				const shown = shownResult(item);
-				if (!shown || shown.result.matches.length === 0) {
+				if (!shown || !hasRelationActions(shown.result)) {
 					continue;
 				}
 				const result = shown.result;

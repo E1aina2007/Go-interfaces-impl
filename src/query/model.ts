@@ -51,6 +51,7 @@ export interface QueryResult {
 	readonly module: GoModule;
 	readonly subject: LocatedType;
 	readonly matches: readonly RelationMatch[];
+	readonly hasExternalCandidates: boolean;
 	readonly hidden: number;
 	readonly unverifiedTesting: ReadonlySet<string>;
 	readonly skipped: number;

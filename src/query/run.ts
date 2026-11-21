@@ -3,7 +3,11 @@ import { Location, l10n, workspace, type CancellationToken, type Position, type 
 import { isTestFile } from '../core/testing';
 import type { GoProvider } from '../language/provider';
 import { findModule } from '../workspace/module';
-import { RelationSources, relationSourceKinds } from '../workspace/relationSources';
+import {
+	RelationSources,
+	relationSourceKinds,
+	type RelationSource,
+} from '../workspace/relationSources';
 import { TestingFilter } from './filter';
 import { GenericRelations, supportsType } from './generics';
 import {
@@ -97,6 +101,17 @@ export async function runQuery(
 		!isTestFile(uri.path) && configuration.get<boolean>('hideTestingImplementations', true);
 	const sources = new RelationSources(module, scope);
 	const matches = new Map<string, RelationMatch>();
+	let hasExternalCandidates = false;
+	const sourceFor = async (uri: Uri): Promise<RelationSource | undefined> => {
+		const key = uri.toString();
+		const origin = await sources.source(key);
+		// A location outside the module only provides an entry point for a full query.
+		// 模块外的位置仅用于提供完整查询入口
+		if (scope === 'module' && !origin && !hasExternalCandidates) {
+			hasExternalCandidates = (await sources.directory(key)) !== undefined;
+		}
+		return origin;
+	};
 	let skipped = 0;
 	let unreadable = 0;
 	for (const location of locations) {
@@ -105,7 +120,7 @@ export async function runQuery(
 			skipped++;
 			continue;
 		}
-		if (!(await sources.source(location.uri.toString()))) {
+		if (!(await sourceFor(location.uri))) {
 			continue;
 		}
 		const match = await candidate(resolver, location);
@@ -131,7 +146,7 @@ export async function runQuery(
 		}
 		// Attribute aliases to the declaration they resolve to.
 		// 别名按最终解析到的声明确定来源
-		const source = await sources.source(match.location.uri.toString());
+		const source = await sourceFor(match.location.uri);
 		if (source) {
 			matches.set(match.id, { ...match, source });
 		}
@@ -186,6 +201,7 @@ export async function runQuery(
 		module,
 		subject,
 		matches: filtered.matches,
+		hasExternalCandidates,
 		hidden: filtered.hidden,
 		unverifiedTesting: filtered.unverified,
 		skipped,

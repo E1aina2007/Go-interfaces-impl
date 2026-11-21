@@ -1,4 +1,11 @@
-import { commands, l10n, window, type Disposable, type LogOutputChannel } from 'vscode';
+import {
+	commands,
+	l10n,
+	window,
+	type Disposable,
+	type LogOutputChannel,
+	type TextDocument,
+} from 'vscode';
 import { StaleQueryError, type QueryResult } from '../query/model';
 import type { ImplementationQueries } from '../query/service';
 import type { AnnotationDocuments } from './annotationDocuments';
@@ -6,11 +13,13 @@ import {
 	openRelation,
 	openRelationArguments,
 	retryRelation,
+	showAllRelations,
 	showRelations,
 	type OpenRelationArguments,
 	type RetryRelationArguments,
 	type ShowRelationsArguments,
 } from './annotationModel';
+import { findImplementations } from './commands';
 import { errorMessage } from './labels';
 import { openTarget } from './navigation';
 import { createRelationItems, createRelationPickOptions } from './relationPicker';
@@ -65,7 +74,10 @@ export class AnnotationCommands implements Disposable {
 				this.navigate(args),
 			),
 			commands.registerCommand(showRelations, (...args: unknown[]): Promise<void> =>
-				this.showAll(args),
+				this.showModuleResults(args),
+			),
+			commands.registerCommand(showAllRelations, (...args: unknown[]): Promise<void> =>
+				this.queryAll(args),
 			),
 			commands.registerCommand(retryRelation, (...args: unknown[]): void =>
 				this.retry(args, retried),
@@ -100,7 +112,10 @@ export class AnnotationCommands implements Disposable {
 		}
 	}
 
-	private current(args: ShowRelationsArguments | OpenRelationArguments): QueryResult {
+	private current(args: ShowRelationsArguments | OpenRelationArguments): {
+		result: QueryResult;
+		document: TextDocument;
+	} {
 		if (this.disposed) {
 			throw new StaleQueryError();
 		}
@@ -119,7 +134,7 @@ export class AnnotationCommands implements Disposable {
 		) {
 			throw new StaleQueryError();
 		}
-		return result;
+		return { result, document: state.document };
 	}
 
 	private async navigate(args: unknown[]): Promise<void> {
@@ -127,7 +142,7 @@ export class AnnotationCommands implements Disposable {
 			if (!isOpenArguments(args)) {
 				throw new Error(l10n.t('Invalid Go implementation navigation arguments'));
 			}
-			const result = this.current(args);
+			const { result } = this.current(args);
 			const match = result.matches.find((item) => item.id === args[4]);
 			if (!match) {
 				throw new StaleQueryError();
@@ -142,18 +157,37 @@ export class AnnotationCommands implements Disposable {
 		}
 	}
 
-	private async showAll(args: unknown[]): Promise<void> {
+	private async showModuleResults(args: unknown[]): Promise<void> {
 		try {
 			if (!isRelationArguments(args)) {
 				throw new Error(l10n.t('Invalid Go implementation list arguments'));
 			}
-			const result = this.current(args);
+			const { result } = this.current(args);
 			const selected = await window.showQuickPick(
 				createRelationItems(result, false),
 				createRelationPickOptions(result),
 			);
 			if (selected?.match) {
 				await this.navigate(openRelationArguments(args, selected.match.id));
+			}
+		} catch (error) {
+			this.report(error);
+		}
+	}
+
+	private async queryAll(args: unknown[]): Promise<void> {
+		try {
+			if (!isRelationArguments(args)) {
+				throw new Error(l10n.t('Invalid Go implementation list arguments'));
+			}
+			const { result, document } = this.current(args);
+			if (result.hasExternalCandidates) {
+				await commands.executeCommand(
+					findImplementations,
+					document.uri,
+					document.positionAt(args[2]),
+					args[1],
+				);
 			}
 		} catch (error) {
 			this.report(error);
