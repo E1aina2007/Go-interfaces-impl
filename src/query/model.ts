@@ -1,8 +1,15 @@
 import { l10n, type Location, type TextDocument, type Uri } from 'vscode';
 import type { GoFile, GoType } from '../core/types';
 import type { GoModule } from '../workspace/module';
+import type { RelationScope, RelationSource } from '../workspace/relationSources';
 
 export type QueryKind = 'concrete' | 'interface' | 'auto';
+
+export interface QueryOptions {
+	readonly expected: QueryKind;
+	readonly scope: RelationScope;
+	readonly sourceVersion: number | undefined;
+}
 
 export interface CapturedFile {
 	readonly document: TextDocument;
@@ -19,6 +26,10 @@ export interface LocatedType {
 	readonly testing: boolean;
 	readonly methods: readonly LocatedMethod[];
 	readonly interfaces: readonly (Location | null)[];
+}
+
+export interface RelationMatch extends LocatedType {
+	readonly source: RelationSource;
 }
 
 export interface LocatedMethod {
@@ -39,7 +50,8 @@ export interface QueryResult {
 	readonly coverage: 'provider-limited';
 	readonly module: GoModule;
 	readonly subject: LocatedType;
-	readonly matches: readonly LocatedType[];
+	readonly matches: readonly RelationMatch[];
+	readonly hasExternalCandidates: boolean;
 	readonly hidden: number;
 	readonly unverifiedTesting: ReadonlySet<string>;
 	readonly skipped: number;

@@ -1,7 +1,12 @@
 import { Location, l10n, workspace, type CancellationToken, type Position, type Uri } from 'vscode';
 import { isTestFile } from '../core/testing';
 import type { GoProvider } from '../language/provider';
-import { belongsToModule, findModule, isGoConfigFile } from '../workspace/module';
+import { findModule, isGoConfigFile } from '../workspace/module';
+import {
+	RelationSources,
+	relationSourceKinds,
+	type RelationSource,
+} from '../workspace/relationSources';
 import { TestingFilter } from './filter';
 import { GenericRelations, supportsType } from './generics';
 import {
@@ -9,8 +14,9 @@ import {
 	StaleQueryError,
 	type CapturedFile,
 	type LocatedType,
-	type QueryKind,
+	type QueryOptions,
 	type QueryResult,
+	type RelationMatch,
 } from './model';
 import { TypeResolver } from './resolve';
 
@@ -27,8 +33,7 @@ export async function runQuery(
 	context: QueryContext,
 	uri: Uri,
 	position: Position,
-	expected: QueryKind,
-	sourceVersion?: number,
+	{ expected, scope, sourceVersion }: QueryOptions,
 ): Promise<QueryResult> {
 	const { provider, token, generation, read, check, prepare } = context;
 	const resolver = new TypeResolver(provider, read, token);
@@ -91,28 +96,28 @@ export async function runQuery(
 	const configuration = workspace.getConfiguration('goInterfaces', uri);
 	const hideTesting =
 		!isTestFile(uri.path) && configuration.get<boolean>('hideTestingImplementations', true);
-	const matches = new Map<string, LocatedType>();
-	const seen = new Set<string>();
+	const sources = new RelationSources(module, scope);
+	const matches = new Map<string, RelationMatch>();
+	let hasExternalCandidates = false;
+	const sourceFor = async (uri: Uri): Promise<RelationSource | undefined> => {
+		const key = uri.toString();
+		const origin = await sources.source(key);
+		// A location outside the module only provides an entry point for a full query.
+		// 模块外的位置仅用于提供完整查询入口
+		if (scope === 'module' && !origin && !hasExternalCandidates) {
+			hasExternalCandidates = (await sources.directory(key)) !== undefined;
+		}
+		return origin;
+	};
 	let skipped = 0;
 	let unreadable = 0;
-	const moduleResults = new Map<string, Promise<boolean>>();
-	const belongs = (uri: string): Promise<boolean> => {
-		let result = moduleResults.get(uri);
-		if (!result) {
-			result = belongsToModule(uri, module);
-			moduleResults.set(uri, result);
-		}
-		return result;
-	};
-	const generics = new GenericRelations(provider, resolver, read, belongs, token, check);
 	for (const location of locations) {
 		check();
-		if (location.uri.scheme !== 'file') {
+		if (location.uri.scheme !== 'file' || !location.uri.path.endsWith('.go')) {
 			skipped++;
 			continue;
 		}
-		const key = location.uri.toString();
-		if (!(await belongs(key))) {
+		if (!(await sourceFor(location.uri))) {
 			continue;
 		}
 		const match = await candidate(resolver, location);
@@ -133,41 +138,67 @@ export async function runQuery(
 			skipped++;
 			continue;
 		}
-		// Confirm the resolved declaration belongs to the current module.
-		// 确认解析后的声明属于当前模块
-		if (!(await belongs(match.location.uri.toString()))) {
+		if (matches.has(match.id)) {
 			continue;
 		}
-		const identity = match.id;
-		if (seen.has(identity)) {
-			continue;
+		// Attribute aliases to the declaration they resolve to.
+		// 别名按最终解析到的声明确定来源
+		const source = await sourceFor(match.location.uri);
+		if (source) {
+			matches.set(match.id, { ...match, source });
 		}
-		seen.add(identity);
-		if (!(await generics.supports(subject, match))) {
-			skipped++;
-			continue;
-		}
-		matches.set(identity, match);
 	}
-	const candidates = [...matches.values()];
+
+	const candidates = [...matches.values()].sort(
+		(a, b) =>
+			relationSourceKinds.indexOf(a.source.kind) -
+				relationSourceKinds.indexOf(b.source.kind) ||
+			a.declaration.name.localeCompare(b.declaration.name) ||
+			a.location.uri.toString().localeCompare(b.location.uri.toString()),
+	);
+	// Direct methods can only be declared in the concrete type's package.
+	// 直接方法只能声明在具体类型所属的包中
+	const methodPackages = new Set(
+		direction === 'interface'
+			? candidates.map((match) => match.packageDirectory)
+			: [subject.packageDirectory],
+	);
+	const includesMethodFile = async (uri: string): Promise<boolean> => {
+		const directory = await sources.directory(uri);
+		return directory !== undefined && methodPackages.has(directory);
+	};
+	const generics = new GenericRelations(
+		provider,
+		resolver,
+		read,
+		includesMethodFile,
+		token,
+		check,
+	);
+	const supported: RelationMatch[] = [];
+	for (const match of candidates) {
+		check();
+		if (await generics.supports(subject, match)) {
+			supported.push(match);
+		} else {
+			skipped++;
+		}
+	}
 	// Filter candidates by method source when test filtering is enabled.
 	// 启用测试过滤时按方法来源筛选候选类型
 	const filtered = hideTesting
-		? await new TestingFilter(provider, resolver, read, belongs, token).apply(
+		? await new TestingFilter(provider, resolver, read, includesMethodFile, token).apply(
 				subject,
-				candidates,
+				supported,
 			)
-		: { matches: candidates, hidden: 0, unverified: new Set<string>() };
+		: { matches: supported, hidden: 0, unverified: new Set<string>() };
 	check();
 	return {
 		coverage: 'provider-limited',
 		module,
 		subject,
-		matches: [...filtered.matches].sort(
-			(a, b) =>
-				a.declaration.name.localeCompare(b.declaration.name) ||
-				a.location.uri.toString().localeCompare(b.location.uri.toString()),
-		),
+		matches: filtered.matches,
+		hasExternalCandidates,
 		hidden: filtered.hidden,
 		unverifiedTesting: filtered.unverified,
 		skipped,

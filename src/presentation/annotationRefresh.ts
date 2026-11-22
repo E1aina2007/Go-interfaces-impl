@@ -157,9 +157,8 @@ export class AnnotationRefresh implements Disposable {
 						const result = await this.queries.query(
 							state.document.uri,
 							item.range.start,
-							'auto',
+							{ expected: 'auto', scope: 'module', sourceVersion: state.version },
 							request.token,
-							state.version,
 						);
 						if (
 							!request.token.isCancellationRequested &&
