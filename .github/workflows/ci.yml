@@ -15,12 +15,56 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+  # Preserve a push build when a later push only changes files outside the build.
+  # 后续推送只修改构建范围之外的文件时，保留先前推送的构建
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  changes:
+    name: Check build inputs
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      build: ${{ steps.inputs.outputs.build }}
+    steps:
+      - name: Check out source and comparison history
+        if: ${{ !inputs.package && github.event_name != 'workflow_dispatch' }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Decide whether to build
+        id: inputs
+        shell: bash
+        env:
+          PACKAGE_ARTIFACT: ${{ inputs.package }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          build=true
+          if [[ "$PACKAGE_ARTIFACT" != true && "$GITHUB_EVENT_NAME" != workflow_dispatch ]]; then
+            base=$PUSH_BEFORE
+            if [[ "$GITHUB_EVENT_NAME" == pull_request ]]; then
+              base=$PR_BASE
+            fi
+
+            # Skip only known paths outside the build and VSIX inputs.
+            # 只跳过明确不参与构建或 VSIX 打包的路径
+            if [[ -n "$base" ]] && git cat-file -e "$base^{commit}" 2>/dev/null; then
+              if git diff --quiet "$base" "$GITHUB_SHA" -- . \
+                ':(exclude)docs/' ':(exclude)examples/' ':(exclude).vscode/' ':(exclude)AGENTS.md'; then
+                build=false
+              fi
+            else
+              echo 'Build inputs could not be compared against a base commit. Running the full build.'
+            fi
+          fi
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+
   package:
     name: Build (${{ matrix.os }})
+    needs: changes
     strategy:
       fail-fast: false
       matrix:
@@ -31,23 +75,30 @@ jobs:
       run:
         shell: bash
     steps:
+      - name: Report skipped build
+        if: needs.changes.outputs.build == 'false'
+        run: echo 'Build inputs are unchanged.'
       - name: Check out source
+        if: needs.changes.outputs.build == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - name: Set up Node.js
+        if: needs.changes.outputs.build == 'true'
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version-file: .nvmrc
           cache: npm
       - name: Install locked dependencies
+        if: needs.changes.outputs.build == 'true'
         run: npm ci
       - name: Validate release notes
+        if: needs.changes.outputs.build == 'true'
         run: |
           version=$(node -p "require('./package.json').version")
           node scripts/release-notes.mjs "v$version" < CHANGELOG.md > /dev/null
       - name: Check and build
-        if: ${{ !inputs.package }}
+        if: ${{ needs.changes.outputs.build == 'true' && !inputs.package }}
         run: npm run build
       - name: Check, build and package
         if: ${{ inputs.package }}
