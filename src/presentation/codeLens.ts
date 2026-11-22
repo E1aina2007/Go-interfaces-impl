@@ -88,6 +88,9 @@ export class ImplementationLenses implements CodeLensProvider {
 		) {
 			return [];
 		}
+		// Once a document has results to show, fill in pending declarations without loading text.
+		// 文档已有可复用的查询结果时，在后台补齐待查声明，无需展示查询提示
+		const showPending = !state.blocked && !state.items.some((item) => shownResult(item));
 		const lenses: CodeLens[] = [];
 		for (const item of state.items) {
 			if (item.state.kind === 'failed') {
@@ -111,9 +114,7 @@ export class ImplementationLenses implements CodeLensProvider {
 				}
 				continue;
 			}
-			// Keep earlier results while syntax errors block new queries.
-			// 语法错误阻止新查询时保留先前结果
-			if (state.blocked) {
+			if (!showPending) {
 				continue;
 			}
 			lenses.push(
