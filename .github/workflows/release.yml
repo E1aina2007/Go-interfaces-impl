@@ -3,6 +3,8 @@ name: Release
 on:
   push:
     branches: [main]
+    paths:
+      - package.json
   workflow_dispatch:
 
 permissions:
@@ -20,6 +22,7 @@ jobs:
     timeout-minutes: 10
     outputs:
       tag: ${{ steps.version.outputs.tag }}
+      package: ${{ steps.version.outputs.package }}
       publish: ${{ steps.release.outputs.publish }}
     steps:
       - name: Check out source
@@ -32,18 +35,29 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - name: Install locked dependencies
-        run: npm ci --ignore-scripts
       - name: Validate release version
         id: version
         shell: bash
+        env:
+          PUSH_BEFORE: ${{ github.event.before }}
         run: |
           node --input-type=module <<'NODE'
+          import { execFileSync } from 'node:child_process';
           import { appendFileSync, readFileSync } from 'node:fs';
 
           const manifest = JSON.parse(readFileSync('package.json', 'utf8'));
-          const lockfile = JSON.parse(readFileSync('package-lock.json', 'utf8'));
           const version = manifest.version;
+          const before = process.env.PUSH_BEFORE;
+          if (process.env.GITHUB_EVENT_NAME === 'push' && before && !/^0+$/.test(before)) {
+            const previous = JSON.parse(execFileSync('git', ['show', `${before}:package.json`], { encoding: 'utf8' }));
+            if (previous.version === version) {
+              console.log(`Version ${version} is unchanged. Skipping release packaging.`);
+              appendFileSync(process.env.GITHUB_OUTPUT, 'package=false\n');
+              process.exit(0);
+            }
+          }
+
+          const lockfile = JSON.parse(readFileSync('package-lock.json', 'utf8'));
           if (typeof manifest.publisher !== 'string' || !/^[a-z0-9][a-z0-9-]*$/i.test(manifest.publisher)) {
             throw new Error('Set package.json publisher to the registered Marketplace publisher ID');
           }
@@ -57,9 +71,13 @@ jobs:
               throw new Error('package.json and package-lock.json versions must match');
             }
           }
-          appendFileSync(process.env.GITHUB_OUTPUT, `tag=v${version}\n`);
+          appendFileSync(process.env.GITHUB_OUTPUT, `tag=v${version}\npackage=true\n`);
           NODE
+      - name: Install locked dependencies
+        if: steps.version.outputs.package == 'true'
+        run: npm ci --ignore-scripts
       - name: Validate and extract release notes
+        if: steps.version.outputs.package == 'true'
         shell: bash
         env:
           RELEASE_TAG: ${{ steps.version.outputs.tag }}
@@ -68,6 +86,7 @@ jobs:
         run: node scripts/release-notes.mjs "$RELEASE_TAG" < CHANGELOG.md > release-notes.md
       - name: Skip an existing release
         id: release
+        if: steps.version.outputs.package == 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -112,6 +131,7 @@ jobs:
 
   build:
     needs: prepare
+    if: needs.prepare.outputs.package == 'true'
     # Marketplace can still need this version when its GitHub Release already exists.
     # GitHub Release 已存在时，Marketplace 仍可能需要发布该版本
     uses: ./.github/workflows/ci.yml
