@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { Location, l10n, workspace, type CancellationToken, type Position, type Uri } from 'vscode';
 import { isTestFile } from '../core/testing';
 import type { GoProvider } from '../language/provider';
@@ -96,7 +97,15 @@ export async function runQuery(
 	const configuration = workspace.getConfiguration('goInterfaces', uri);
 	const hideTesting =
 		!isTestFile(uri.path) && configuration.get<boolean>('hideTestingImplementations', true);
-	const sources = new RelationSources(module, scope);
+	const goWork =
+		scope === 'all'
+			? (workspace.getConfiguration('gopls', uri).get<Record<string, string>>('env')
+					?.GOWORK ??
+				workspace.getConfiguration('go', uri).get<Record<string, string>>('toolsEnvVars')
+					?.GOWORK ??
+				process.env.GOWORK)
+			: undefined;
+	const sources = new RelationSources(module, scope, path.dirname(uri.fsPath), goWork);
 	const matches = new Map<string, RelationMatch>();
 	let hasExternalCandidates = false;
 	const sourceFor = async (uri: Uri): Promise<RelationSource | undefined> => {
