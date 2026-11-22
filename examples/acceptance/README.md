@@ -20,6 +20,8 @@
 
 在 [memory/memory.go](store/memory/memory.go) 的 `Memory` 声明上方点击 `cache.Store` 和 `store.Store`，可以分别跳到 [cache 包的接口](store/cache/cache.go) 和 [store 包的接口](store/store.go)。悬停链接和完整列表也使用相同的名称。
 
+在 [stream.go](stream/stream.go) 的 `Reader` 上方查看本模块的 `stream.Buffer`。如果语言服务返回 `bytes.Buffer`，点击「查看全部结果」可在标准库组找到它。切到其他文件再切回时，缓存中的本模块关系会直接显示。
+
 ## 测试来源过滤
 
 1. 在 [store.go](store/store.go) 查询 `Store`。默认开启过滤，列表显示 `cache.Memory` 和 `memory.Memory`。

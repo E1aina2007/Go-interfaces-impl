@@ -1,6 +1,7 @@
 import { readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readLocalDependencies, type LocalDependencies } from './localDependencies';
 import { fileKey, findModuleFromDirectory, isMissingPath, type GoModule } from './module';
 
 export const relationSourceKinds = ['module', 'standard', 'dependency'] as const;
@@ -25,29 +26,6 @@ function importPathOf(modulePath: string, root: string, directory: string): stri
 function modulePathOf(text: string | undefined): string | undefined {
 	const match = text?.match(/^[ \t]*module[ \t]+(?:"([^"\r\n]+)"|([^\s"]+))/m);
 	return match?.[1] ?? match?.[2];
-}
-
-function requiredModules(text: string): ReadonlySet<string> {
-	const modules = new Set<string>();
-	let inBlock = false;
-	for (const line of text.split(/\r?\n/)) {
-		const directive = line.trim();
-		if (/^require\s*\(/.test(directive)) {
-			inBlock = true;
-			continue;
-		}
-		if (directive.startsWith(')')) {
-			inBlock = false;
-			continue;
-		}
-		const entry = inBlock ? directive : directive.match(/^require\s+(.+)/)?.[1];
-		const match = entry?.match(/^(?:"([^"\r\n]+)"|([^\s"]+))\s+"?v\d/);
-		const modulePath = match?.[1] ?? match?.[2];
-		if (modulePath) {
-			modules.add(modulePath);
-		}
-	}
-	return modules;
 }
 
 async function sourceDirectory(uri: string): Promise<string | undefined> {
@@ -87,11 +65,13 @@ export class RelationSources {
 	private readonly directories = new Map<string, Promise<string | undefined>>();
 	private readonly packages = new Map<string, Promise<RelationSource | undefined>>();
 	private readonly metadata = new Map<string, Promise<string | undefined>>();
-	private requirements: ReadonlySet<string> | undefined;
+	private localDependencies: Promise<LocalDependencies> | undefined;
 
 	constructor(
 		private readonly module: GoModule,
 		private readonly scope: RelationScope,
+		private readonly queryDirectory: string,
+		private readonly goWork: string | undefined,
 	) {}
 
 	directory(uri: string): Promise<string | undefined> {
@@ -166,22 +146,31 @@ export class RelationSources {
 		) {
 			return { kind: 'standard', importPath: relativePath(root, directory) };
 		}
+		// A local replacement keeps the required module's import path.
+		// 本地替换保留被依赖的 module 导入路径
+		let required = false;
+		if (owner && root && !relativePath(root, directory).split('/').includes('vendor')) {
+			this.localDependencies ??= readLocalDependencies(
+				this.module,
+				this.queryDirectory,
+				this.goWork,
+				(filename) => this.read(filename),
+			);
+			const dependencies = await this.localDependencies;
+			const replacement = dependencies.replacements.get(fileKey(owner.rootUri));
+			if (replacement !== undefined) {
+				return replacement
+					? { kind: 'dependency', importPath: importPathOf(replacement, root, directory) }
+					: undefined;
+			}
+			required = modulePath !== undefined && dependencies.required.has(modulePath);
+		}
 		const dependency = await this.externalSource(directory);
 		if (dependency) {
 			return dependency;
 		}
-		// A local replacement keeps the required module's import path.
-		// 本地替换保留被依赖的 module 导入路径
-		if (root && modulePath && !relativePath(root, directory).split('/').includes('vendor')) {
-			this.requirements ??= requiredModules(
-				(await this.read(fileURLToPath(this.module.goModUri))) ?? '',
-			);
-			if (this.requirements.has(modulePath)) {
-				return {
-					kind: 'dependency',
-					importPath: importPathOf(modulePath, root, directory),
-				};
-			}
+		if (required && root && modulePath) {
+			return { kind: 'dependency', importPath: importPathOf(modulePath, root, directory) };
 		}
 		return undefined;
 	}

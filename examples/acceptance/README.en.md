@@ -20,6 +20,8 @@ Click a related type name above a declaration to navigate, or click the directio
 
 Above the `Memory` declaration in [memory/memory.go](store/memory/memory.go), select `cache.Store` and `store.Store` to open the interfaces in the [cache package](store/cache/cache.go) and the [store package](store/store.go). The hover links and the full list use the same names.
 
+In [stream.go](stream/stream.go), look for the current module's `stream.Buffer` above `Reader`. If the language service returns `bytes.Buffer`, select `Show all results` to find it in the standard library group. Switch to another file and back to see the cached current-module relationships immediately.
+
 ## Test source filtering
 
 1. Query `Store` in [store.go](store/store.go). Filtering is on by default and the list shows `cache.Memory` and `memory.Memory`.

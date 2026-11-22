@@ -54,9 +54,9 @@ This extension uses language information exposed through the public VS Code API.
 
 ## Example
 
-The screenshot shows `Rect` implementing the `Shape` interface. It uses Simplified Chinese UI labels; in English, the CodeLens reads “Implements (1) | Shape”.
+The screenshot shows both sides of the relationship between `shapes.Rect` and `shapes.Shape`. In English, the CodeLens above `Rect` reads `Implements (Current module 1) | shapes.Shape`.
 
-![Go Interfaces showing Rect implementing Shape in the Simplified Chinese UI](../media/examples/example.zh-cn.png)
+![Go Interfaces showing the current module's implementers above Shape and its interface above Rect](../media/examples/example.zh-cn.png)
 
 See the [full multi-type acceptance example](../examples/acceptance/shapes/shapes.go).
 
@@ -64,7 +64,11 @@ See the [full multi-type acceptance example](../examples/acceptance/shapes/shape
 
 Open a Go file to see current-module relationships for visible declarations. A concrete type shows `Implements` above its declaration and an interface shows `Implemented by`. Select a related name to navigate or select the direction and count to open the module results. A trailing `?` marks an unverified test source.
 
+When you switch back to a Go file that is still open, valid cached relationships appear immediately. Visible declarations without cached results are queried as needed.
+
 When the language service returns external candidates, the annotation offers `Show all results`. If only external candidates are available, it offers `Show external implementers` or `Show external interfaces`. Select it to query and open a list grouped by current module, standard library, and dependencies, with import paths and known dependency versions. Labels use declared package names. When different packages share a label, current-module matches show relative directories and external matches show their origin and import path.
+
+When an applicable `go.mod` or `go.work` replaces a required module with a local directory, dependency results show the original module's import path. Selecting a result opens the source in the replacement directory.
 
 You can also place the cursor on a type name and run a command from the Command Palette:
 
@@ -95,7 +99,11 @@ Related names above declarations are controlled by VS Code's `editor.codeLens` s
 
 Report bugs or suggest improvements on [GitHub Issues](https://github.com/E1aina2007/Go-interfaces-impl/issues). The Marketplace publisher ID is `E1aina2007`. See the [changelog](../CHANGELOG.md) for version history and the [release workflow](../.github/workflows/release.yml) for automated publishing.
 
-Before a release, add a `## version — YYYY-MM-DD` section to the changelog and synchronize the versions in `package.json` and `package-lock.json`. Keep reference-style link definitions within the relevant version section. After the change reaches `main`, the workflow validates the section and uses it as the GitHub Release notes; existing releases are not updated automatically.
+Regular CI checks and builds on Ubuntu, Windows, and macOS. Changes limited to `examples/`, `docs/`, `.vscode/`, or `AGENTS.md` keep the build checks visible and skip dependency installation and compilation. The README files, changelog, and screenshot ship in the VSIX, so changes to them run the full build.
+
+Before a release, add a `## version` section to `CHANGELOG.md` with an optional `— YYYY-MM-DD` suffix. Synchronize the versions in `package.json` and `package-lock.json`. Keep reference-style link definitions within the relevant version section.
+
+A manifest version change on `main` starts automatic packaging. You can also run the Release workflow manually from `main`. The workflow packages on Ubuntu and Windows, validates the matching changelog section, and uses it for new GitHub Release notes.
 
 ## License and acknowledgements
 
