@@ -57,25 +57,18 @@ export class ImplementationQueries implements Disposable {
 			}
 			this.invalidated.fire();
 		};
-		const watcher = workspace.createFileSystemWatcher(
+		const watchers = [
 			'**/{*.go,go.mod,go.sum,go.work,go.work.sum}',
-		);
-		this.subscriptions = [
-			watcher,
-			watcher.onDidCreate(invalidate),
-			watcher.onDidChange(invalidate),
-			watcher.onDidDelete(invalidate),
-		const watchers = ['**/*.{go,mod,sum,work}', '**/vendor/modules.txt'].flatMap(
-			(pattern): Disposable[] => {
-				const watcher = workspace.createFileSystemWatcher(pattern);
-				return [
-					watcher,
-					watcher.onDidCreate(invalidate),
-					watcher.onDidChange(invalidate),
-					watcher.onDidDelete(invalidate),
-				];
-			},
-		);
+			'**/vendor/modules.txt',
+		].flatMap((pattern): Disposable[] => {
+			const watcher = workspace.createFileSystemWatcher(pattern);
+			return [
+				watcher,
+				watcher.onDidCreate(invalidate),
+				watcher.onDidChange(invalidate),
+				watcher.onDidDelete(invalidate),
+			];
+		});
 		this.subscriptions = [
 			...watchers,
 			workspace.onDidOpenTextDocument((document) => {

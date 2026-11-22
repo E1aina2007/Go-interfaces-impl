@@ -64,33 +64,6 @@ export async function findModuleFromDirectory(directory: string): Promise<GoModu
 	}
 }
 
-export async function belongsToModule(uri: string, module: GoModule): Promise<boolean> {
-	let filename: string;
-	try {
-		filename = await realpath(fileURLToPath(uri));
-	} catch (error) {
-		// The provider can still return locations from a deleted file held open by VS Code.
-		// VS Code 仍持有已删除文件时，语言服务可能继续返回该文件的位置
-		if (
-			error instanceof Error &&
-			'code' in error &&
-			(error.code === 'ENOENT' || error.code === 'ENOTDIR')
-		) {
-			return false;
-		}
-		throw error;
-	}
-	const relative = path.relative(fileURLToPath(module.rootUri), filename);
-	if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
-		return false;
-	}
-	// Check module ownership and exclude vendor source files.
-	// 核对模块归属并排除 vendor 源码
-	if (relative.split(path.sep).includes('vendor')) {
-		return false;
-	}
-	const owner = await findModule(pathToFileURL(filename).href);
-	return owner !== undefined && fileKey(owner.goModUri) === fileKey(module.goModUri);
 export function isMissingPath(error: unknown): boolean {
 	return (
 		error instanceof Error &&
