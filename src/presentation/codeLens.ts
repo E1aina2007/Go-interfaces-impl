@@ -1,7 +1,6 @@
 import {
 	CodeLens,
 	l10n,
-	workspace,
 	type CancellationToken,
 	type CodeLensProvider,
 	type Disposable,
@@ -13,6 +12,7 @@ import type { QueryResult } from '../query/model';
 import type { ImplementationAnnotations } from './annotations';
 import {
 	annotationsEnabled,
+	hasRelationActions,
 	inlineLimit,
 	openRelation,
 	openRelationArguments,
@@ -20,11 +20,18 @@ import {
 	retryArguments,
 	retryRelation,
 	shownResult,
+	showAllRelations,
 	showRelations,
 	type ShowRelationsArguments,
 } from './annotationModel';
 import { findImplementations } from './commands';
-import { labeledMatches, relationDirection, relationSummary } from './labels';
+import {
+	allRelationsLabel,
+	labeledMatches,
+	relationLocation,
+	relationSummary,
+	relationTitle,
+} from './labels';
 
 // Show stale results without navigation commands.
 // 展示过期结果时不提供导航命令
@@ -33,26 +40,38 @@ function relationLenses(
 	result: QueryResult,
 	args: ShowRelationsArguments | undefined,
 ): CodeLens[] {
-	const summary = relationSummary(result);
 	const refreshing = l10n.t('Refreshing implementation relations after a change…');
-	// Place the full-list action first.
-	// 将完整列表入口放在最前面
-	const lenses = [
-		new CodeLens(range, {
-			title: `${relationDirection(result)} (${result.matches.length})`,
-			tooltip: args ? summary : refreshing,
-			command: args ? showRelations : '',
-			arguments: args ? [...args] : [],
-		}),
-	];
-	for (const { match, label } of labeledMatches(result, inlineLimit)) {
-		const location = `${workspace.asRelativePath(match.location.uri)}:${match.location.range.start.line + 1}`;
+	const lenses: CodeLens[] = [];
+	if (result.matches.length > 0) {
+		const summary = args ? relationSummary(result) : refreshing;
 		lenses.push(
 			new CodeLens(range, {
-				title: `${label}${result.unverifiedTesting.has(match.id) ? ' ?' : ''}`,
-				tooltip: `${location}\n${args ? summary : refreshing}`,
-				command: args ? openRelation : '',
-				arguments: args ? openRelationArguments(args, match.id) : [],
+				title: relationTitle(result),
+				tooltip: summary,
+				command: args ? showRelations : '',
+				arguments: args ? [...args] : [],
+			}),
+		);
+		for (const { match, label } of labeledMatches(result, inlineLimit)) {
+			lenses.push(
+				new CodeLens(range, {
+					title: `${label}${result.unverifiedTesting.has(match.id) ? ' ?' : ''}`,
+					tooltip: `${relationLocation(match)}\n${summary}`,
+					command: args ? openRelation : '',
+					arguments: args ? openRelationArguments(args, match.id) : [],
+				}),
+			);
+		}
+	}
+	if (result.hasExternalCandidates) {
+		lenses.push(
+			new CodeLens(range, {
+				title: allRelationsLabel(result),
+				tooltip: args
+					? l10n.t('Search the current module, standard library, and dependencies.')
+					: refreshing,
+				command: args ? showAllRelations : '',
+				arguments: args ? [...args] : [],
 			}),
 		);
 	}
@@ -88,6 +107,9 @@ export class ImplementationLenses implements CodeLensProvider {
 		) {
 			return [];
 		}
+		// Once a document has results to show, fill in pending declarations without loading text.
+		// 文档已有可复用的查询结果时，在后台补齐待查声明，无需展示查询提示
+		const showPending = !state.blocked && !state.items.some((item) => shownResult(item));
 		const lenses: CodeLens[] = [];
 		for (const item of state.items) {
 			if (item.state.kind === 'failed') {
@@ -103,7 +125,7 @@ export class ImplementationLenses implements CodeLensProvider {
 			}
 			const shown = shownResult(item);
 			if (shown) {
-				if (shown.result.matches.length > 0) {
+				if (hasRelationActions(shown.result)) {
 					const args = shown.stale
 						? undefined
 						: relationArguments(state, item, shown.result);
@@ -111,15 +133,15 @@ export class ImplementationLenses implements CodeLensProvider {
 				}
 				continue;
 			}
-			// Keep earlier results while syntax errors block new queries.
-			// 语法错误阻止新查询时保留先前结果
-			if (state.blocked) {
+			if (!showPending) {
 				continue;
 			}
 			lenses.push(
 				new CodeLens(item.range, {
 					title: l10n.t('Finding implementation relations…'),
-					tooltip: l10n.t('Automatically query the visible type declarations.'),
+					tooltip: l10n.t(
+						'Automatically find current-module results for visible declarations.',
+					),
 					command: findImplementations,
 					arguments: [document.uri, item.range.start, state.version],
 				}),

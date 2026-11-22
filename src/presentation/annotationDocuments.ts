@@ -11,6 +11,8 @@ import {
 	type DocumentView,
 } from './annotationModel';
 
+const hiddenDocumentLimit = 32;
+
 interface DocumentLoad {
 	readonly document: TextDocument;
 	readonly version: number;
@@ -27,7 +29,7 @@ export class AnnotationDocuments implements Disposable {
 	private readonly loading = new Map<TextDocument, PendingDocumentLoad>();
 	// Retained results keyed by document and declaration.
 	// 按文档和声明保存的旧结果
-	private readonly previous = new Map<string, Map<string, QueryResult>>();
+	private readonly previous = new Map<TextDocument, Map<string, QueryResult>>();
 	private revision = 0;
 	private disposed = false;
 
@@ -39,7 +41,15 @@ export class AnnotationDocuments implements Disposable {
 	) {}
 
 	find(source: string): DocumentAnnotations | undefined {
-		return this.documents.get(source);
+		const state = this.documents.get(source);
+		if (!state || !annotationsAvailable(state.document)) {
+			return undefined;
+		}
+		// Keep visible accesses in least-recently-used order for eviction.
+		// 按可见文档的访问顺序回收最久未使用的缓存
+		this.documents.delete(source);
+		this.documents.set(source, state);
+		return state;
 	}
 
 	get(document: TextDocument): DocumentAnnotations | undefined {
@@ -49,20 +59,40 @@ export class AnnotationDocuments implements Disposable {
 			: undefined;
 	}
 
-	values(): IterableIterator<DocumentAnnotations> {
-		return this.documents.values();
+	// Allow completed queries to use the retained state while the document is hidden.
+	// 文档隐藏时允许已完成的查询使用仍在缓存中的状态
+	isCurrent(state: DocumentAnnotations): boolean {
+		const { document, version } = state;
+		return (
+			!this.disposed &&
+			!document.isClosed &&
+			document.version === version &&
+			this.documents.get(document.uri.toString()) === state
+		);
+	}
+
+	*visible(): IterableIterator<DocumentAnnotations> {
+		const documents = new Set(window.visibleTextEditors.map((editor) => editor.document));
+		for (const document of documents) {
+			const state = this.get(document);
+			if (state) {
+				yield state;
+			}
+		}
 	}
 
 	// Keep the retained view until the document is loaded again.
 	// 文档重新加载前保持旧结果视图
 	view(document: TextDocument): DocumentView {
-		return documentView(this.get(document), this.previous.has(document.uri.toString()));
+		return documentView(this.get(document), this.previous.has(document));
 	}
 
 	invalidate(): void {
 		this.revision++;
-		for (const [uri, state] of this.documents) {
-			this.previous.set(uri, retainAnnotations(state));
+		for (const state of this.documents.values()) {
+			if (annotationsAvailable(state.document)) {
+				this.previous.set(state.document, retainAnnotations(state));
+			}
 		}
 		this.documents.clear();
 		this.loading.clear();
@@ -71,7 +101,6 @@ export class AnnotationDocuments implements Disposable {
 
 	load(document: TextDocument): Promise<DocumentAnnotations | undefined> {
 		if (this.disposed || !annotationsAvailable(document)) {
-			this.drop(document);
 			return Promise.resolve(undefined);
 		}
 		const previous = this.get(document);
@@ -132,10 +161,12 @@ export class AnnotationDocuments implements Disposable {
 				return undefined;
 			}
 			const uri = document.uri.toString();
-			const retained = this.previous.get(uri);
+			const retained = this.previous.get(document);
 			const state = createAnnotations(document, version, file, retained);
+			this.documents.delete(uri);
 			this.documents.set(uri, state);
-			this.previous.delete(uri);
+			this.trim();
+			this.previous.delete(document);
 			if (retained) {
 				this.changed(uri);
 			}
@@ -156,7 +187,7 @@ export class AnnotationDocuments implements Disposable {
 		const uri = document.uri.toString();
 		const removed =
 			this.documents.get(uri)?.document === document && this.documents.delete(uri);
-		const retained = this.previous.delete(uri);
+		const retained = this.previous.delete(document);
 		const loading = this.loading.delete(document);
 		if ((removed || retained) && !this.disposed) {
 			this.changed(uri);
@@ -164,9 +195,22 @@ export class AnnotationDocuments implements Disposable {
 		return removed || retained || loading;
 	}
 
+	trim(): void {
+		const visible = new Set(window.visibleTextEditors.map((editor) => editor.document));
+		const hidden: string[] = [];
+		for (const [uri, state] of this.documents) {
+			if (!visible.has(state.document)) {
+				hidden.push(uri);
+			}
+		}
+		for (const uri of hidden.slice(0, Math.max(0, hidden.length - hiddenDocumentLimit))) {
+			this.documents.delete(uri);
+		}
+	}
+
 	prune(): void {
 		for (const [uri, state] of this.documents) {
-			if (!annotationsAvailable(state.document)) {
+			if (state.document.isClosed) {
 				this.documents.delete(uri);
 			}
 		}
@@ -175,15 +219,9 @@ export class AnnotationDocuments implements Disposable {
 				this.loading.delete(document);
 			}
 		}
-		for (const uri of this.previous.keys()) {
-			if (
-				!window.visibleTextEditors.some(
-					(editor) =>
-						editor.document.uri.toString() === uri &&
-						annotationsAvailable(editor.document),
-				)
-			) {
-				this.previous.delete(uri);
+		for (const document of this.previous.keys()) {
+			if (!annotationsAvailable(document)) {
+				this.previous.delete(document);
 			}
 		}
 	}

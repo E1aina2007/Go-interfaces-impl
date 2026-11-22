@@ -26,7 +26,7 @@ export class ImplementationAnnotations implements Disposable {
 			syntax,
 			output,
 			(uri) => this.changed.fire({ kind: 'document', uri }),
-			() => this.refresh.schedule(),
+			() => this.refresh.documentLoaded(),
 		);
 		this.refresh = new AnnotationRefresh(this.documents, queries, output, (uri) =>
 			this.changed.fire({ kind: 'document', uri }),
@@ -49,13 +49,18 @@ export class ImplementationAnnotations implements Disposable {
 			}),
 			window.onDidChangeTextEditorVisibleRanges(() => this.refresh.visibleChanged()),
 			workspace.onDidChangeConfiguration((event) => {
-				if (event.affectsConfiguration('editor.codeLens')) {
+				if (
+					event.affectsConfiguration('editor.codeLens') ||
+					event.affectsConfiguration('goInterfaces.codeLens') ||
+					event.affectsConfiguration('goInterfaces.gutterIcons')
+				) {
 					this.documents.prune();
 					this.refresh.visibleChanged();
 					this.changed.fire({ kind: 'editors' });
 				}
 			}),
 			workspace.onDidCloseTextDocument((document) => {
+				this.refresh.cancel(document);
 				if (this.documents.drop(document)) {
 					this.refresh.visibleChanged();
 				}

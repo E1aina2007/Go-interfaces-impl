@@ -1,5 +1,5 @@
 {
-  "extension.description": "Go interface implementation navigation within a module (in development).",
+  "extension.description": "Navigate Go interface implementations across your module, the standard library, and dependencies (in development).",
   "command.showOutput": "Show Output",
   "command.findImplementations": "Show Type Implementation Relations",
   "command.findInterfaces": "Show Implemented Interfaces",

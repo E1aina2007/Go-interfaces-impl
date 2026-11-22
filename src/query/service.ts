@@ -11,8 +11,13 @@ import {
 } from 'vscode';
 import type { GoSyntax } from '../core/syntax';
 import { GoProvider } from '../language/provider';
-import { StaleQueryError, type CapturedFile, type QueryKind, type QueryResult } from './model';
+import { isGoConfigFile } from '../workspace/module';
+import { StaleQueryError, type CapturedFile, type QueryOptions, type QueryResult } from './model';
 import { runQuery } from './run';
+
+function affectsQueries(document: TextDocument): boolean {
+	return document.languageId === 'go' || isGoConfigFile(document.fileName);
+}
 
 export class ImplementationQueries implements Disposable {
 	private readonly provider = new GoProvider();
@@ -28,16 +33,19 @@ export class ImplementationQueries implements Disposable {
 
 	constructor(private readonly syntax: GoSyntax) {
 		const dirty = new Set(
-			workspace.textDocuments
-				.filter((document) => document.isDirty)
-				.map((document) => document.uri.toString()),
+			workspace.textDocuments.filter(
+				(document) => document.isDirty && affectsQueries(document),
+			),
 		);
-		const track = (document: TextDocument): void => {
-			if (document.isDirty) {
-				dirty.add(document.uri.toString());
+		const track = (document: TextDocument): boolean => {
+			const wasDirty = dirty.has(document);
+			const isDirty = document.isDirty && affectsQueries(document);
+			if (isDirty) {
+				dirty.add(document);
 			} else {
-				dirty.delete(document.uri.toString());
+				dirty.delete(document);
 			}
+			return wasDirty !== isDirty;
 		};
 		const invalidate = (): void => {
 			this.generation++;
@@ -49,23 +57,33 @@ export class ImplementationQueries implements Disposable {
 			}
 			this.invalidated.fire();
 		};
-		const watcher = workspace.createFileSystemWatcher('**/*.{go,mod,sum,work}');
+		const watchers = [
+			'**/{*.go,go.mod,go.sum,go.work,go.work.sum}',
+			'**/vendor/modules.txt',
+		].flatMap((pattern): Disposable[] => {
+			const watcher = workspace.createFileSystemWatcher(pattern);
+			return [
+				watcher,
+				watcher.onDidCreate(invalidate),
+				watcher.onDidChange(invalidate),
+				watcher.onDidDelete(invalidate),
+			];
+		});
 		this.subscriptions = [
-			watcher,
-			watcher.onDidCreate(invalidate),
-			watcher.onDidChange(invalidate),
-			watcher.onDidDelete(invalidate),
+			...watchers,
 			workspace.onDidOpenTextDocument((document) => {
-				track(document);
-				if (document.isDirty) {
+				if (track(document)) {
 					invalidate();
 				}
 			}),
 			workspace.onDidChangeTextDocument((event) => {
-				track(event.document);
+				const { document, contentChanges } = event;
+				const dirtyChanged = track(document);
+				// Unsaved Go configuration blocks queries even if only the dirty state changed.
+				// 即使仅有未保存状态变化，未保存的 Go 配置也会阻止查询
 				if (
-					event.document.languageId === 'go' ||
-					/(?:^|\/)(?:go\.(?:mod|sum|work)|go\.work\.sum)$/.test(event.document.uri.path)
+					(contentChanges.length > 0 && affectsQueries(document)) ||
+					(dirtyChanged && isGoConfigFile(document.fileName))
 				) {
 					invalidate();
 				}
@@ -73,17 +91,21 @@ export class ImplementationQueries implements Disposable {
 			workspace.onDidCloseTextDocument((document) => {
 				// Invalidate queries when an edited document closes.
 				// 编辑过的文档关闭时使查询失效
-				if (dirty.delete(document.uri.toString())) {
+				if (dirty.delete(document)) {
 					invalidate();
 				}
 			}),
-			workspace.onDidSaveTextDocument((document) => track(document)),
+			workspace.onDidSaveTextDocument((document) => {
+				if (track(document) && isGoConfigFile(document.fileName)) {
+					invalidate();
+				}
+			}),
 			workspace.onDidChangeWorkspaceFolders(invalidate),
 			workspace.onDidChangeConfiguration((event) => {
 				if (
 					event.affectsConfiguration('go') ||
 					event.affectsConfiguration('gopls') ||
-					event.affectsConfiguration('goInterfaces')
+					event.affectsConfiguration('goInterfaces.hideTestingImplementations')
 				) {
 					invalidate();
 				}
@@ -98,9 +120,8 @@ export class ImplementationQueries implements Disposable {
 	async query(
 		uri: Uri,
 		position: Position,
-		expected: QueryKind,
+		options: QueryOptions,
 		caller: CancellationToken,
-		sourceVersion?: number,
 	): Promise<QueryResult> {
 		const request = new CancellationTokenSource();
 		this.pending.add(request);
@@ -164,8 +185,7 @@ export class ImplementationQueries implements Disposable {
 				},
 				uri,
 				position,
-				expected,
-				sourceVersion,
+				options,
 			);
 		} catch (error) {
 			check();

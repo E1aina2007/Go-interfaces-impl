@@ -5,6 +5,7 @@ import type { QueryResult } from '../query/model';
 
 export const openRelation = 'goInterfaces.openRelation';
 export const showRelations = 'goInterfaces.showRelations';
+export const showAllRelations = 'goInterfaces.showAllRelations';
 export const retryRelation = 'goInterfaces.retryRelation';
 export const inlineLimit = 6;
 
@@ -73,6 +74,10 @@ export function shownResult(item: Annotation): ShownResult | undefined {
 		return { result: item.state.result, stale: true };
 	}
 	return undefined;
+}
+
+export function hasRelationActions(result: QueryResult): boolean {
+	return result.matches.length > 0 || result.hasExternalCandidates;
 }
 
 export function annotationsEnabled(
